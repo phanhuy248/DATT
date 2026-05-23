@@ -1,0 +1,15 @@
+{
+  "name": "smartshop-crawler",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "crawl": "node crawl-products.mjs",
+    "crawl:sample": "node crawl-products.mjs --per-category=2 --limit=24",
+    "fake": "node generate-fake-products.mjs",
+    "fake:80": "node generate-fake-products.mjs --per-category=80"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}
