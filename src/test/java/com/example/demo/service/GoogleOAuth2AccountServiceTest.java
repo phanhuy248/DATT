@@ -61,6 +61,38 @@ class GoogleOAuth2AccountServiceTest {
     }
 
     @Test
+    void prepareGoogleLoginAuthenticatesExistingUserWithCompletedProfile() {
+        User user = new User();
+        user.setEmail("completed-google-profile-test@gmail.com");
+        user.setPassword(passwordEncoder.encode("secret-password"));
+        user.setFullName("Completed Google User");
+        user.setPhone("0911430000");
+        user.setAddress("Ha Noi");
+        user.setActive(true);
+        user.setRole(roleRepository.findByName("USER"));
+        User savedUser = userRepository.save(user);
+
+        OAuth2User oauth2User = new DefaultOAuth2User(
+                AuthorityUtils.NO_AUTHORITIES,
+                Map.of(
+                        "sub", "completed-google-sub",
+                        "email", "completed-google-profile-test@gmail.com",
+                        "email_verified", true,
+                        "name", "Completed Google User",
+                        "picture", "https://lh3.googleusercontent.com/a/completed-avatar=s96-c"),
+                "sub");
+
+        GoogleOAuth2AccountService.GoogleLoginResult result =
+                googleOAuth2AccountService.prepareGoogleLogin(oauth2User);
+
+        assertThat(result.profileCompletionRequired()).isFalse();
+        assertThat(result.completionToken()).isNull();
+        assertThat(result.user().getId()).isEqualTo(savedUser.getId());
+        assertThat(profileCompletionRepository.findByEmailIgnoreCaseAndConsumedFalse(
+                "completed-google-profile-test@gmail.com")).isEmpty();
+    }
+
+    @Test
     void prepareGoogleLoginRequiresProfileCompletionForInactiveExistingUser() {
         User user = new User();
         user.setEmail("inactive-google-profile-test@gmail.com");

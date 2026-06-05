@@ -1,18 +1,19 @@
-import React from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from '../common/Navbar'
 import Footer from '../common/Footer'
 import Chatbot from '../common/Chatbot'
 
 export default function MainLayout() {
+  const location = useLocation()
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="flex min-h-screen flex-col bg-shop-bg text-shop-text">
       <Navbar />
-      <main style={{ flex: 1, paddingBottom: 40 }}>
+      <main className="flex-1">
         <Outlet />
       </main>
       <Footer />
-      <Chatbot />
+      {location.pathname !== '/' && <Chatbot />}
     </div>
   )
 }

@@ -15,6 +15,8 @@ const CartPage = lazy(() => import('./pages/client/CartPage'))
 const CheckoutPage = lazy(() => import('./pages/client/CheckoutPage'))
 const OrderSuccessPage = lazy(() => import('./pages/client/OrderSuccessPage'))
 const OrderHistoryPage = lazy(() => import('./pages/client/OrderHistoryPage'))
+const VnpayReturnPage = lazy(() => import('./pages/client/VnpayReturnPage'))
+const BankTransferPaymentPage = lazy(() => import('./pages/client/BankTransferPaymentPage'))
 const AccountPage = lazy(() => import('./pages/client/AccountPage'))
 const NewsPage = lazy(() => import('./pages/client/NewsPage'))
 const PostDetailPage = lazy(() => import('./pages/client/PostDetailPage'))
@@ -35,6 +37,8 @@ const AdminOrders = lazy(() => import('./pages/admin/OrdersPage'))
 const AdminCoupons = lazy(() => import('./pages/admin/CouponsPage'))
 const AdminSuppliers = lazy(() => import('./pages/admin/SuppliersPage'))
 const AdminPosts = lazy(() => import('./pages/admin/PostsPage'))
+const AdminBanners = lazy(() => import('./pages/admin/BannersPage'))
+const AdminContacts = lazy(() => import('./pages/admin/ContactsPage'))
 
 function PageLoader() {
   return (
@@ -67,10 +71,12 @@ export default function App() {
             <Route path="/oauth2/complete-profile" element={<OAuth2CompleteProfilePage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/payment/vnpay-return" element={<VnpayReturnPage />} />
             <Route path="/admin/login" element={user?.role === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <AdminLoginPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/payment/bank-transfer/:orderId" element={<BankTransferPaymentPage />} />
               <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
               <Route path="/orders" element={<OrderHistoryPage />} />
               <Route path="/account" element={<AccountPage />} />
@@ -87,8 +93,10 @@ export default function App() {
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/coupons" element={<AdminCoupons />} />
+              <Route path="/admin/banners" element={<AdminBanners />} />
               <Route path="/admin/suppliers" element={<AdminSuppliers />} />
               <Route path="/admin/posts" element={<AdminPosts />} />
+              <Route path="/admin/contacts" element={<AdminContacts />} />
             </Route>
           </Route>
 

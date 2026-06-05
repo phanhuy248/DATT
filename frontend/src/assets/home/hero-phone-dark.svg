@@ -1,0 +1,33 @@
+<svg width="520" height="520" viewBox="0 0 520 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="264" cy="430" rx="122" ry="26" fill="#020617" opacity=".66"/>
+  <g transform="translate(158 54)">
+    <rect x="18" y="0" width="208" height="392" rx="36" fill="#05070b"/>
+    <rect x="31" y="14" width="182" height="364" rx="29" fill="url(#body)" stroke="url(#edge)" stroke-width="3"/>
+    <path d="M196 64v240" stroke="white" stroke-width="2" opacity=".16"/>
+    <rect x="55" y="46" width="86" height="150" rx="24" fill="#070b12" stroke="#1f2937" stroke-width="5"/>
+    <circle cx="84" cy="78" r="21" fill="url(#lens)" stroke="#64748b" stroke-width="5"/>
+    <circle cx="115" cy="120" r="21" fill="url(#lens)" stroke="#64748b" stroke-width="5"/>
+    <circle cx="84" cy="162" r="21" fill="url(#lens)" stroke="#64748b" stroke-width="5"/>
+    <circle cx="118" cy="76" r="7" fill="#ff1d2d"/>
+    <path d="M55 286c38 15 85 15 134-5" stroke="#94a3b8" stroke-width="4" opacity=".28"/>
+    <path d="M45 23l154 336" stroke="white" stroke-width="6" opacity=".08"/>
+  </g>
+  <defs>
+    <linearGradient id="body" x1="31" y1="14" x2="213" y2="378" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3f3f3a"/>
+      <stop offset=".42" stop-color="#171717"/>
+      <stop offset="1" stop-color="#05070b"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="31" y1="14" x2="213" y2="378" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d1d5db"/>
+      <stop offset=".48" stop-color="#4b5563"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="lens" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(84 78) rotate(90) scale(21)">
+      <stop stop-color="#e5e7eb"/>
+      <stop offset=".35" stop-color="#1d4ed8"/>
+      <stop offset=".7" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </radialGradient>
+  </defs>
+</svg>

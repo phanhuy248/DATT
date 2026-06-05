@@ -8,11 +8,13 @@ import com.example.demo.dto.product.ProductDTO;
 import com.example.demo.dto.product.ProductRequest;
 import com.example.demo.dto.product.StockImportRequest;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.service.AuditLogService;
 import com.example.demo.service.CategoryService;
 import com.example.demo.service.ProductService;
 import com.example.demo.service.RecommendationService;
 import com.example.demo.service.SupplierService;
 import com.example.demo.service.UploadService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -35,32 +37,39 @@ public class ProductController {
     private final RecommendationService recommendationService;
     private final UserRepository userRepository;
     private final SupplierService supplierService;
+    private final AuditLogService auditLogService;
 
     public ProductController(ProductService productService,
                              CategoryService categoryService,
                              UploadService uploadService,
                              RecommendationService recommendationService,
                              UserRepository userRepository,
-                             SupplierService supplierService) {
+                             SupplierService supplierService,
+                             AuditLogService auditLogService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.uploadService = uploadService;
         this.recommendationService = recommendationService;
         this.userRepository = userRepository;
         this.supplierService = supplierService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<ProductDTO>>> getProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categoryName,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String ram,
+            @RequestParam(required = false) String target,
             @RequestParam(defaultValue = "newest") String sortBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
         Page<ProductDTO> dtoPage = productService.getProductsPageFiltered(
-                keyword, categoryId, minPrice, maxPrice, sortBy, page, size);
+                keyword, categoryId, categoryName, minPrice, maxPrice, brand, ram, target, sortBy, page, size);
         return ResponseEntity.ok(ApiResponse.ok(PagedResponse.of(dtoPage)));
     }
 
@@ -108,11 +117,15 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<ApiResponse<ProductDTO>> createProduct(
             @Valid @RequestPart("data") ProductRequest req,
-            @RequestPart(value = "image", required = false) MultipartFile image) {
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest request) {
         Product product = buildProduct(new Product(), req, image);
         product.setSold(0);
         // saveAndConvert() lưu rồi reload trong cùng @Transactional để DTO map đúng
         ProductDTO saved = productService.saveAndConvert(product);
+        auditLogService.record(currentUser(userDetails), "CREATE_PRODUCT", "Product", saved.getId(),
+                null, productSummary(saved), request);
         return ResponseEntity.status(201).body(ApiResponse.ok("Tạo sản phẩm thành công", saved));
     }
 
@@ -120,23 +133,34 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductDTO>> updateProduct(
             @PathVariable long id,
             @Valid @RequestPart("data") ProductRequest req,
-            @RequestPart(value = "image", required = false) MultipartFile image) {
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest request) {
         Product product = productService.findById(id);
         if (product == null) return ResponseEntity.notFound().build();
+        String oldValue = productSummary(product);
         buildProduct(product, req, image);
         ProductDTO saved = productService.saveAndConvert(product);
+        auditLogService.record(currentUser(userDetails), "UPDATE_PRODUCT", "Product", saved.getId(),
+                oldValue, productSummary(saved), request);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật thành công", saved));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable long id) {
-        if (productService.findById(id) == null) return ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable long id,
+                                                           @AuthenticationPrincipal UserDetails userDetails,
+                                                           HttpServletRequest request) {
+        Product product = productService.findById(id);
+        if (product == null) return ResponseEntity.notFound().build();
+        String oldValue = productSummary(product);
         productService.deleteById(id);
+        auditLogService.record(currentUser(userDetails), "DELETE_PRODUCT", "Product", id,
+                oldValue, null, request);
         return ResponseEntity.ok(ApiResponse.ok("Xóa sản phẩm thành công", null));
     }
 
     @PostMapping("/{id}/stock-import")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<ProductDTO>> importStock(@PathVariable long id,
                                                                @Valid @RequestBody StockImportRequest req) {
         return ResponseEntity.ok(ApiResponse.ok("Nhập hàng thành công",
@@ -144,7 +168,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}/stock-imports")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<?>> getStockImports(@PathVariable long id) {
         return ResponseEntity.ok(ApiResponse.ok(productService.getStockImports(id)));
     }
@@ -167,5 +191,23 @@ public class ProductController {
             product.setImage(imagePath);
         }
         return product;
+    }
+
+    private com.example.demo.domain.User currentUser(UserDetails userDetails) {
+        return userDetails == null ? null : userRepository.findByEmail(userDetails.getUsername());
+    }
+
+    private String productSummary(Product product) {
+        return "id=" + product.getId()
+                + ", name=" + product.getName()
+                + ", price=" + product.getPrice()
+                + ", quantity=" + product.getQuantity();
+    }
+
+    private String productSummary(ProductDTO product) {
+        return "id=" + product.getId()
+                + ", name=" + product.getName()
+                + ", price=" + product.getPrice()
+                + ", quantity=" + product.getQuantity();
     }
 }

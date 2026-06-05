@@ -1,20 +1,36 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getPosts } from '../../api/posts'
+import SectionHeader from '../../components/ui/SectionHeader'
 
 export default function NewsPage() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
-  useEffect(() => { getPosts().then(setPosts).finally(() => setLoading(false)) }, [])
+
+  useEffect(() => {
+    getPosts().then(setPosts).finally(() => setLoading(false))
+  }, [])
+
   return (
-    <div className="container" style={{ paddingTop: 32, paddingBottom: 40 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>Tin tức SmartShop</h1>
-      {loading ? <div className="spinner" /> : posts.length === 0 ? <div className="empty-state"><p>Chưa có tin tức</p></div> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-          {posts.map(p => <Link key={p.id} to={`/news/${p.slug}`} className="card" style={{ textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
-            {p.thumbnail && <img src={p.thumbnail} alt="" style={{ width: '100%', height: 150, objectFit: 'cover' }} />}
-            <div className="card-body"><h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{p.title}</h2><p style={{ fontSize: 13, color: '#6b7280' }}>{p.summary}</p></div>
-          </Link>)}
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 lg:px-6">
+      <SectionHeader title="Tin tức SMARTSHOP" subtitle="Cập nhật hướng dẫn mua sắm, chính sách và sản phẩm công nghệ" />
+      {loading ? (
+        <div className="spinner" />
+      ) : posts.length === 0 ? (
+        <div className="empty-state rounded-2xl border border-shop-border bg-shop-surface shadow-sm">
+          <p>Chưa có tin tức</p>
+        </div>
+      ) : (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post) => (
+            <Link key={post.id} to={`/news/${post.slug}`} className="overflow-hidden rounded-2xl border border-shop-border bg-shop-surface shadow-sm transition hover:border-shop-red hover:shadow-md">
+              {post.thumbnail && <img src={post.thumbnail} alt="" className="h-44 w-full object-cover" />}
+              <div className="p-5">
+                <h2 className="line-clamp-2 text-base font-bold leading-6 text-shop-text">{post.title}</h2>
+                <p className="mt-2 line-clamp-3 text-sm font-medium leading-6 text-shop-muted">{post.summary}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
     </div>

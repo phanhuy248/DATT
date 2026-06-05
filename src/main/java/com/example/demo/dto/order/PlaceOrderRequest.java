@@ -17,7 +17,7 @@ public class PlaceOrderRequest {
     @NotBlank(message = "Số điện thoại không được để trống")
     private String receiverPhone;
 
-    @Pattern(regexp = "COD|BANK_TRANSFER|MOMO", message = "Phương thức thanh toán không hợp lệ")
+    @Pattern(regexp = "COD|BANK_TRANSFER|MOMO|VNPAY", message = "Phương thức thanh toán không hợp lệ")
     private String paymentMethod = "COD";
 
     private String couponCode;

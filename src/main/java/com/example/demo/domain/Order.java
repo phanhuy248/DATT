@@ -71,9 +71,9 @@ public class Order {
             this.paymentMethod = PaymentMethod.COD;
         }
         if (this.paymentStatus == null) {
-            this.paymentStatus = this.paymentMethod == PaymentMethod.COD
-                    ? PaymentStatus.UNPAID
-                    : PaymentStatus.PENDING;
+            this.paymentStatus = this.paymentMethod == PaymentMethod.VNPAY
+                    ? PaymentStatus.PENDING
+                    : PaymentStatus.UNPAID;
         }
     }
 

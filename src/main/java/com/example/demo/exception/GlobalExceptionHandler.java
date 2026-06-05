@@ -3,6 +3,7 @@ package com.example.demo.exception;
 import com.example.demo.dto.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,6 +27,11 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
         return ResponseEntity.badRequest().body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
+        return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -55,18 +61,17 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Bạn không có quyền thực hiện hành động này"));
     }
 
-    /**
-     * Xử lý khi file upload vượt quá kích thước cho phép.
-     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("Dữ liệu không hợp lệ hoặc bị trùng lặp"));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(ApiResponse.error("File quá lớn. Kích thước tối đa cho phép là 50MB"));
+                .body(ApiResponse.error("File quá lớn. Kích thước tối đa cho phép là 5MB"));
     }
 
-    /**
-     * Xử lý lỗi multipart form chung (ví dụ thiếu part 'data' khi tạo/sửa sản phẩm).
-     */
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<ApiResponse<Void>> handleMultipart(MultipartException ex) {
         return ResponseEntity.badRequest()

@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     try {
-      const user = await signIn(form.email, form.password)
+      const user = await signIn(form.email.trim(), form.password)
       if (user.role !== 'ADMIN') {
         signOut()
         toast.error('Tài khoản của bạn không có quyền truy cập trang quản trị.')
@@ -39,13 +39,13 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: '#F4F6F8' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div className="card">
           <div className="card-body">
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ width: 56, height: 56, background: '#1e293b', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                <i className="fa-solid fa-shield-halved" style={{ fontSize: 24, color: '#60a5fa' }} />
+              <div style={{ width: 56, height: 56, background: '#071A2D', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <i className="fa-solid fa-shield-halved" style={{ fontSize: 24, color: '#FFFFFF' }} />
               </div>
               <h1 style={{ fontSize: 22, fontWeight: 700 }}>Admin Panel</h1>
               <p className="text-muted text-sm mt-1">Chỉ dành cho quản trị viên</p>
@@ -64,12 +64,12 @@ export default function AdminLoginPage() {
                 {errors.password && <p className="form-error">{errors.password}</p>}
               </div>
               <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading}
-                style={{ background: '#1e293b', borderColor: '#1e293b' }}>
+                style={{ background: '#071A2D', borderColor: '#071A2D' }}>
                 {loading ? <><i className="fa-solid fa-spinner fa-spin" /> Đang xử lý...</> : <><i className="fa-solid fa-right-to-bracket" style={{ marginRight: 6 }} />Đăng nhập Admin</>}
               </button>
             </form>
             <p className="text-sm text-muted mt-4" style={{ textAlign: 'center' }}>
-              <Link to="/login" style={{ color: '#6b7280' }}>
+              <Link to="/login" style={{ color: '#6B7280' }}>
                 <i className="fa-solid fa-arrow-left" style={{ marginRight: 4 }} />
                 Quay lại trang đăng nhập
               </Link>

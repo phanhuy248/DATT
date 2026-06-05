@@ -50,7 +50,7 @@ export default function OAuth2CallbackPage() {
       <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <div className="card" style={{ width: '100%', maxWidth: 420 }}>
           <div className="card-body" style={{ textAlign: 'center' }}>
-            <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: 34, color: '#dc2626', marginBottom: 12 }} />
+            <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: 34, color: '#DC2626', marginBottom: 12 }} />
             <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Đăng nhập Google thất bại</h1>
             <p className="text-muted text-sm" style={{ marginBottom: 20 }}>{error}</p>
             <Link to="/login" className="btn btn-primary">Quay lại đăng nhập</Link>
@@ -62,7 +62,7 @@ export default function OAuth2CallbackPage() {
 
   return (
     <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#374151' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#111827' }}>
         <i className="fa-solid fa-spinner fa-spin" />
         <span>Đang hoàn tất đăng nhập Google...</span>
       </div>

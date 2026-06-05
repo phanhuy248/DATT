@@ -1,8 +1,11 @@
 package com.example.demo.service;
 
+import com.example.demo.domain.InventoryTransaction;
+import com.example.demo.domain.InventoryTransactionType;
 import com.example.demo.domain.Order;
 import com.example.demo.domain.OrderDetail;
 import com.example.demo.domain.OrderStatus;
+import com.example.demo.domain.OrderStatusHistory;
 import com.example.demo.domain.PaymentMethod;
 import com.example.demo.domain.PaymentStatus;
 import com.example.demo.domain.Product;
@@ -11,8 +14,10 @@ import com.example.demo.dto.order.OrderDTO;
 import com.example.demo.dto.order.OrderItemRequest;
 import com.example.demo.dto.order.PlaceOrderRequest;
 import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.repository.InventoryTransactionRepository;
 import com.example.demo.repository.OrderDetailRepository;
 import com.example.demo.repository.OrderRepository;
+import com.example.demo.repository.OrderStatusHistoryRepository;
 import com.example.demo.repository.ProductRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,17 +38,23 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
     private final ProductRepository productRepository;
+    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
     private final CouponService couponService;
     private final MailService mailService;
 
     public OrderService(OrderRepository orderRepository,
                         OrderDetailRepository orderDetailRepository,
                         ProductRepository productRepository,
+                        OrderStatusHistoryRepository orderStatusHistoryRepository,
+                        InventoryTransactionRepository inventoryTransactionRepository,
                         CouponService couponService,
                         MailService mailService) {
         this.orderRepository = orderRepository;
         this.orderDetailRepository = orderDetailRepository;
         this.productRepository = productRepository;
+        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
+        this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.couponService = couponService;
         this.mailService = mailService;
     }
@@ -61,7 +73,7 @@ public class OrderService {
         order.setReceiverPhone(req.getReceiverPhone());
         PaymentMethod paymentMethod = PaymentMethod.valueOf(req.getPaymentMethod());
         order.setPaymentMethod(paymentMethod);
-        order.setPaymentStatus(paymentMethod == PaymentMethod.COD ? PaymentStatus.UNPAID : PaymentStatus.PENDING);
+        order.setPaymentStatus(paymentMethod == PaymentMethod.VNPAY ? PaymentStatus.PENDING : PaymentStatus.UNPAID);
 
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItemRequest item : req.getItems()) {
@@ -87,9 +99,13 @@ public class OrderService {
             detail.setPrice(product.getPrice());
             orderDetailRepository.save(detail);
 
-            product.setQuantity(product.getQuantity() - item.getQuantity());
+            long beforeQuantity = product.getQuantity();
+            product.setQuantity(beforeQuantity - item.getQuantity());
             product.setSold(product.getSold() + item.getQuantity());
             productRepository.save(product);
+            recordInventoryTransaction(product, InventoryTransactionType.SALE, item.getQuantity(),
+                    beforeQuantity, product.getQuantity(), "ORDER", savedOrder.getId(),
+                    "Order #" + savedOrder.getId());
         }
         couponService.markUsed(req.getCouponCode());
         Order loadedOrder = orderRepository.findWithDetailsById(savedOrder.getId()).orElse(savedOrder);
@@ -119,6 +135,11 @@ public class OrderService {
 
     @Transactional
     public Order updateStatus(long id, String status) {
+        return updateStatus(id, status, null, null);
+    }
+
+    @Transactional
+    public Order updateStatus(long id, String status, User changedBy, String note) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng id=" + id));
         OrderStatus nextStatus = parseStatus(status);
@@ -137,6 +158,9 @@ public class OrderService {
         }
         order.setStatus(nextStatus);
         orderRepository.save(order);
+        if (currentStatus != nextStatus) {
+            recordStatusHistory(order, currentStatus, nextStatus, changedBy, note);
+        }
         // Reload với EntityGraph để lấy orderDetails đầy đủ trong cùng transaction
         return orderRepository.findWithDetailsById(id).orElse(order);
     }
@@ -167,6 +191,53 @@ public class OrderService {
         return map;
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getRevenueByDay(int days) {
+        LocalDate startDate = LocalDate.now().minusDays(Math.max(days, 1) - 1L);
+        Map<LocalDate, BigDecimal> revenueByDay = orderRepository.findAll().stream()
+                .filter(order -> order.getCreatedDate() != null)
+                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
+                .filter(order -> !order.getCreatedDate().toLocalDate().isBefore(startDate))
+                .collect(Collectors.groupingBy(
+                        order -> order.getCreatedDate().toLocalDate(),
+                        LinkedHashMap::new,
+                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalPrice, BigDecimal::add)));
+
+        return revenueByDay.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("date", entry.getKey().toString());
+                    row.put("revenue", entry.getValue());
+                    return row;
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTopCustomers(int limit) {
+        Map<User, BigDecimal> totals = orderRepository.findAll().stream()
+                .filter(order -> order.getUser() != null)
+                .filter(order -> order.getStatus() != OrderStatus.CANCELLED)
+                .collect(Collectors.groupingBy(
+                        Order::getUser,
+                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalPrice, BigDecimal::add)));
+
+        return totals.entrySet().stream()
+                .sorted((left, right) -> right.getValue().compareTo(left.getValue()))
+                .limit(limit)
+                .map(entry -> {
+                    User user = entry.getKey();
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("userId", user.getId());
+                    row.put("email", user.getEmail());
+                    row.put("fullName", user.getFullName());
+                    row.put("totalSpent", entry.getValue());
+                    return row;
+                })
+                .toList();
+    }
+
     public List<String> getAllStatuses() {
         return List.of(OrderStatus.values()).stream().map(OrderStatus::name).toList();
     }
@@ -188,9 +259,43 @@ public class OrderService {
         if (loaded.getOrderDetails() == null) return;
         for (OrderDetail detail : loaded.getOrderDetails()) {
             Product product = detail.getProduct();
-            product.setQuantity(product.getQuantity() + detail.getQuantity());
+            long beforeQuantity = product.getQuantity();
+            product.setQuantity(beforeQuantity + detail.getQuantity());
             product.setSold(Math.max(0, product.getSold() - detail.getQuantity()));
             productRepository.save(product);
+            recordInventoryTransaction(product, InventoryTransactionType.CANCEL_ORDER, detail.getQuantity(),
+                    beforeQuantity, product.getQuantity(), "ORDER", loaded.getId(),
+                    "Cancel order #" + loaded.getId());
         }
+    }
+
+    private void recordStatusHistory(Order order, OrderStatus oldStatus, OrderStatus newStatus, User changedBy, String note) {
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setOrder(order);
+        history.setOldStatus(oldStatus);
+        history.setNewStatus(newStatus);
+        history.setChangedBy(changedBy);
+        history.setNote(note);
+        orderStatusHistoryRepository.save(history);
+    }
+
+    private void recordInventoryTransaction(Product product,
+                                            InventoryTransactionType type,
+                                            long quantity,
+                                            long beforeQuantity,
+                                            long afterQuantity,
+                                            String referenceType,
+                                            Long referenceId,
+                                            String note) {
+        InventoryTransaction transaction = new InventoryTransaction();
+        transaction.setProduct(product);
+        transaction.setType(type);
+        transaction.setQuantity(quantity);
+        transaction.setBeforeQuantity(beforeQuantity);
+        transaction.setAfterQuantity(afterQuantity);
+        transaction.setReferenceType(referenceType);
+        transaction.setReferenceId(referenceId);
+        transaction.setNote(note);
+        inventoryTransactionRepository.save(transaction);
     }
 }

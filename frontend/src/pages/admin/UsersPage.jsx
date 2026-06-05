@@ -62,9 +62,9 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700 }}>Quản lý người dùng</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="admin-page-actions" style={{ display: 'flex', gap: 8 }}>
           <input className="form-control" style={{ width: 240 }} placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)} />
           <button className="btn btn-primary" onClick={openCreate}><i className="fa-solid fa-plus" /> Thêm</button>
         </div>
@@ -80,8 +80,8 @@ export default function UsersPage() {
         </div>
       ) : (
         <div className="card">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+            <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
                   {['ID', 'Họ tên', 'Email', 'Điện thoại', 'Vai trò', 'Thao tác'].map(h => (
@@ -94,8 +94,8 @@ export default function UsersPage() {
                   ? <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Không tìm thấy người dùng</td></tr>
                   : filtered.map(u => (
                     <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>#{u.id}</td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td data-label="ID" style={{ padding: '12px 16px', color: '#6b7280' }}>#{u.id}</td>
+                      <td data-label="Họ tên" style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                             {u.avatar
@@ -105,12 +105,12 @@ export default function UsersPage() {
                           <span style={{ fontWeight: 500 }}>{u.fullName}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{u.email}</td>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{u.phone || '—'}</td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td data-label="Email" style={{ padding: '12px 16px', color: '#6b7280' }}>{u.email}</td>
+                      <td data-label="Điện thoại" style={{ padding: '12px 16px', color: '#6b7280' }}>{u.phone || '—'}</td>
+                      <td data-label="Vai trò" style={{ padding: '12px 16px' }}>
                         <span className={`badge ${u.role === 'ADMIN' ? 'badge-danger' : 'badge-info'}`}>{u.role}</span>
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td data-label="Thao tác" style={{ padding: '12px 16px' }}>
                         <button className="btn btn-danger btn-sm" onClick={() => handleDelete(u.id, u.email)} disabled={u.id === me?.id}>
                           <i className="fa-solid fa-trash" />
                         </button>
@@ -129,7 +129,7 @@ export default function UsersPage() {
         </div>
       )}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div className="admin-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="card" style={{ width: '100%', maxWidth: 520 }}>
             <div className="card-body">
               <h2 style={{ fontWeight: 700, marginBottom: 16 }}>{modal.mode === 'create' ? 'Thêm tài khoản' : 'Sửa tài khoản'}</h2>
@@ -141,7 +141,7 @@ export default function UsersPage() {
                 <div className="form-group"><label className="form-label">Mật khẩu {modal.mode === 'edit' && '(để trống nếu không đổi)'}</label><input type="password" className="form-control" value={form.password || ''} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
                 <div className="form-group"><label className="form-label">Vai trò</label><select className="form-control" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="USER">USER</option><option value="STAFF">STAFF</option><option value="ADMIN">ADMIN</option></select></div>
                 <label style={{ display: 'flex', gap: 8, marginBottom: 16 }}><input type="checkbox" checked={!!form.active} onChange={e => setForm({ ...form, active: e.target.checked })} /> Hoạt động</label>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary">Lưu</button></div>
+                <div className="admin-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary">Lưu</button></div>
               </form>
             </div>
           </div>

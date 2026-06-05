@@ -297,7 +297,7 @@ mvn test
 
 Hien co test:
 
-- `DemoApplicationTests`: test context Spring Boot.
+- `SmartShopApplicationTests`: test context Spring Boot.
 - `CartServiceTest`: test nghiep vu gio hang.
 - `CouponServiceTest`: test nghiep vu ma giam gia.
 

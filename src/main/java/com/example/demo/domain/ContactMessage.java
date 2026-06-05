@@ -1,6 +1,8 @@
 package com.example.demo.domain;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 
 @Entity
@@ -9,10 +11,14 @@ public class ContactMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
+    @NotBlank(message = "Họ tên không được để trống")
     private String fullName;
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
     private String email;
     private String phone;
     private String subject;
+    @NotBlank(message = "Nội dung liên hệ không được để trống")
     @Column(columnDefinition = "TEXT")
     private String message;
     private boolean handled = false;

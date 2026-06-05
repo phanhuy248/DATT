@@ -53,6 +53,10 @@ public class GoogleOAuth2AccountService {
         GoogleProfile googleProfile = resolveGoogleProfile(oauthUser);
         User user = userRepository.findByEmailIgnoreCase(googleProfile.email());
 
+        if (hasCompletedProfile(user)) {
+            return GoogleLoginResult.authenticated(user);
+        }
+
         String completionToken = createProfileCompletionToken(user, googleProfile);
         return GoogleLoginResult.profileCompletionRequired(completionToken);
     }
@@ -104,6 +108,14 @@ public class GoogleOAuth2AccountService {
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
         user.setRole(defaultUserRole());
         return user;
+    }
+
+    private boolean hasCompletedProfile(User user) {
+        return user != null
+                && user.isActive()
+                && StringUtils.hasText(user.getFullName())
+                && StringUtils.hasText(user.getPhone())
+                && StringUtils.hasText(user.getAddress());
     }
 
     private String createProfileCompletionToken(User user, GoogleProfile googleProfile) {

@@ -1,0 +1,27 @@
+<svg width="640" height="520" viewBox="0 0 640 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="520" rx="36" fill="url(#bg)"/>
+  <ellipse cx="325" cy="425" rx="210" ry="25" fill="#94a3b8" opacity=".26"/>
+  <g transform="translate(112 96)">
+    <path d="M70 44h300c18 0 33 15 33 33v198H37V77c0-18 15-33 33-33Z" fill="#cbd5e1" stroke="#475569" stroke-width="6"/>
+    <path d="M60 67h318v202H60V67Z" fill="url(#screen)"/>
+    <path d="M24 281h420l-48 56H72L24 281Z" fill="url(#base)" stroke="#64748b" stroke-width="5"/>
+    <path d="M172 294h98l-14 19h-78l-6-19Z" fill="#94a3b8" opacity=".85"/>
+    <path d="M73 82 350 82 242 260H73V82Z" fill="white" opacity=".28"/>
+  </g>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="640" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8fafc"/>
+      <stop offset=".55" stop-color="#dbeafe"/>
+      <stop offset="1" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="60" y1="67" x2="378" y2="269" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e2e8f0"/>
+      <stop offset=".45" stop-color="#94a3b8"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="base" x1="24" y1="281" x2="444" y2="337" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+</svg>

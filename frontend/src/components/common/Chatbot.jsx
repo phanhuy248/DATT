@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Bot, MessageCircle, Send, X } from 'lucide-react'
 import { sendMessage } from '../../api/chat'
+import Button from '../ui/Button'
 
-const WELCOME = 'Xin chào! Tôi là trợ lý SmartShop 🤖 Tôi có thể tư vấn laptop, điện thoại và thiết bị công nghệ cho bạn. Bạn cần hỗ trợ gì?'
+const WELCOME = 'Xin chào! Tôi là trợ lý SMARTSHOP. Tôi có thể tư vấn laptop, điện thoại và thiết bị công nghệ cho bạn.'
 
 export default function Chatbot() {
   const [open, setOpen] = useState(false)
@@ -32,158 +34,78 @@ export default function Chatbot() {
     }
   }
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
       handleSend()
     }
   }
 
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1050 }}>
-      {/* Chat window */}
+    <div className="fixed bottom-6 right-6 z-[70]">
       {open && (
-        <div style={{
-          width: 360,
-          height: 480,
-          background: '#fff',
-          borderRadius: 16,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          display: 'flex',
-          flexDirection: 'column',
-          marginBottom: 12,
-          overflow: 'hidden',
-          border: '1px solid #e0e0e0'
-        }}>
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, #0d6efd, #0a58ca)',
-            color: '#fff',
-            padding: '14px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18
-              }}>🤖</div>
+        <div className="mb-3 flex h-[min(480px,calc(100vh-120px))] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-shop-border bg-shop-surface shadow-md">
+          <div className="flex items-center justify-between bg-shop-navy px-4 py-3 text-white">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                <Bot className="h-5 w-5" />
+              </span>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 15 }}>SmartShop AI</div>
-                <div style={{ fontSize: 11, opacity: 0.85 }}>Trợ lý tư vấn trực tuyến</div>
+                <div className="text-sm font-bold">SMARTSHOP AI</div>
+                <div className="text-xs font-medium text-white/70">Tư vấn trực tuyến</div>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
-            >×</button>
+            <button type="button" onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white transition hover:bg-white/10" aria-label="Đóng chat">
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', background: '#f8f9fa' }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                justifyContent: msg.from === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: 10
-              }}>
-                <div style={{
-                  maxWidth: '80%',
-                  padding: '10px 14px',
-                  borderRadius: msg.from === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.from === 'user' ? '#0d6efd' : '#fff',
-                  color: msg.from === 'user' ? '#fff' : '#212529',
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
-                }}>
-                  {msg.text}
+          <div className="flex-1 overflow-y-auto bg-shop-bg px-4 py-3">
+            {messages.map((message, index) => (
+              <div key={`${message.from}-${index}`} className={`mb-3 flex ${message.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={[
+                    'max-w-[82%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2 text-sm font-medium leading-6 shadow-sm',
+                    message.from === 'user'
+                      ? 'rounded-br-md bg-shop-red text-white'
+                      : 'rounded-bl-md border border-shop-border bg-shop-surface text-shop-text',
+                  ].join(' ')}
+                >
+                  {message.text}
                 </div>
               </div>
             ))}
             {loading && (
-              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 10 }}>
-                <div style={{
-                  padding: '10px 16px', borderRadius: '18px 18px 18px 4px',
-                  background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                  fontSize: 20, letterSpacing: 2
-                }}>
-                  <span className="typing-dot">•</span>
-                  <span className="typing-dot" style={{ animationDelay: '0.2s' }}>•</span>
-                  <span className="typing-dot" style={{ animationDelay: '0.4s' }}>•</span>
+              <div className="mb-3 flex justify-start">
+                <div className="rounded-2xl rounded-bl-md border border-shop-border bg-shop-surface px-4 py-2 text-sm font-bold text-shop-muted shadow-sm">
+                  Đang trả lời...
                 </div>
               </div>
             )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div style={{
-            padding: '10px 12px',
-            borderTop: '1px solid #e9ecef',
-            display: 'flex',
-            gap: 8,
-            background: '#fff'
-          }}>
+          <div className="flex gap-2 border-t border-shop-border bg-shop-surface p-3">
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Nhập câu hỏi của bạn..."
+              placeholder="Nhập câu hỏi..."
               disabled={loading}
-              style={{
-                flex: 1,
-                border: '1px solid #dee2e6',
-                borderRadius: 20,
-                padding: '8px 14px',
-                fontSize: 14,
-                outline: 'none',
-                background: loading ? '#f8f9fa' : '#fff'
-              }}
+              className="h-10 min-w-0 flex-1 rounded-xl border border-shop-border bg-shop-surface px-3 text-sm font-medium text-shop-text outline-none transition placeholder:text-shop-muted focus:border-shop-red focus:ring-4 focus:ring-shop-red/10"
             />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              style={{
-                width: 38, height: 38,
-                borderRadius: '50%',
-                background: loading || !input.trim() ? '#adb5bd' : '#0d6efd',
-                border: 'none',
-                color: '#fff',
-                fontSize: 16,
-                cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0
-              }}
-            >➤</button>
+            <Button variant="icon" onClick={handleSend} disabled={loading || !input.trim()} aria-label="Gửi">
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Toggle button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          width: 56, height: 56,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #0d6efd, #0a58ca)',
-          border: 'none',
-          color: '#fff',
-          fontSize: 24,
-          cursor: 'pointer',
-          boxShadow: '0 4px 16px rgba(13,110,253,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'transform 0.2s'
-        }}
-        title="Tư vấn AI"
-      >
-        {open ? '×' : '💬'}
-      </button>
+      {!open && (
+        <Button variant="primary" onClick={() => setOpen(true)} className="h-14 w-14 rounded-2xl p-0 shadow-md" aria-label="Tư vấn AI">
+          <MessageCircle className="h-6 w-6" />
+        </Button>
+      )}
     </div>
   )
 }

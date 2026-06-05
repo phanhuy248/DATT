@@ -3,6 +3,7 @@ package com.example.demo.security;
 import com.example.demo.domain.User;
 import com.example.demo.service.GoogleOAuth2AccountService.GoogleLoginResult;
 import com.example.demo.service.GoogleOAuth2AccountService;
+import com.example.demo.service.RefreshTokenService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,6 +31,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final GoogleOAuth2AccountService googleOAuth2AccountService;
     private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${app.oauth2.frontend-redirect-uri:http://localhost:3000/oauth2/callback}")
     private String frontendRedirectUri;
@@ -39,10 +41,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     public OAuth2AuthenticationSuccessHandler(GoogleOAuth2AccountService googleOAuth2AccountService,
                                               UserDetailsService userDetailsService,
-                                              JwtUtil jwtUtil) {
+                                              JwtUtil jwtUtil,
+                                              RefreshTokenService refreshTokenService) {
         this.googleOAuth2AccountService = googleOAuth2AccountService;
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -61,7 +65,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             User user = loginResult.user();
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
             String accessToken = jwtUtil.generateAccessToken(userDetails);
-            String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+            String refreshToken = refreshTokenService.createToken(user, request.getHeader("User-Agent")).getToken();
 
             clearServerLoginState(request);
             response.sendRedirect(successRedirectUrl(accessToken, refreshToken));

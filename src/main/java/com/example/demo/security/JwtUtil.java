@@ -5,8 +5,10 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
+import jakarta.annotation.PostConstruct;
 import java.util.Date;
 
 @Component
@@ -20,6 +22,13 @@ public class JwtUtil {
 
     @Value("${app.jwt.refresh-expiration-ms}")
     private long refreshExpirationMs;
+
+    @PostConstruct
+    void validateJwtSecret() {
+        if (!StringUtils.hasText(jwtSecret) || jwtSecret.length() < 64) {
+            throw new IllegalStateException("JWT_SECRET is required and must be at least 64 characters long");
+        }
+    }
 
     private SecretKey key() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
@@ -41,6 +50,14 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + refreshExpirationMs))
                 .signWith(key())
                 .compact();
+    }
+
+    public long getJwtExpirationMs() {
+        return jwtExpirationMs;
+    }
+
+    public long getRefreshExpirationMs() {
+        return refreshExpirationMs;
     }
 
     public String extractUsername(String token) {

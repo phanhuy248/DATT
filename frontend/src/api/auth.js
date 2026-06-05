@@ -21,8 +21,14 @@ export const completeGoogleProfile = (data) =>
 export const forgotPassword = (email) =>
   api.post('/auth/forgot-password', { email }).then(r => r.data)
 
+export const verifyPasswordResetOtp = (email, otp) =>
+  api.post('/auth/forgot-password/verify-otp', { email, otp }).then(r => r.data.data)
+
 export const resetPassword = (token, newPassword) =>
   api.post('/auth/reset-password', { token, newPassword }).then(r => r.data)
+
+export const logout = (refreshToken) =>
+  api.post('/auth/logout', { refreshToken }).then(r => r.data)
 
 export const getGoogleLoginUrl = () =>
   `${backendBaseUrl()}/oauth2/authorization/google`

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 
 import com.example.demo.domain.Order;
 import com.example.demo.domain.OrderStatus;
+import com.example.demo.domain.PaymentMethod;
+import com.example.demo.domain.PaymentStatus;
 import com.example.demo.domain.User;
 
 @Repository
@@ -31,6 +33,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
     @Query("SELECT o FROM Order o ORDER BY o.createdDate DESC")
     List<Order> findAllByOrderByCreatedDateDesc();
+
+    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
+    List<Order> findByPaymentMethodAndPaymentStatusOrderByCreatedDateDesc(PaymentMethod paymentMethod, PaymentStatus paymentStatus);
 
     long countByStatus(OrderStatus status);
 

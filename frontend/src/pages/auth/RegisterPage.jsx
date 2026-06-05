@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from 'react-toastify'
+import BrandLogo from '../../components/common/BrandLogo'
+import { validateFullName, validateGmail, validatePassword, validateConfirmPassword, validatePhone, validateAddress, buildErrors } from '../../utils/validators'
 
 const initialForm = {
   email: '',
@@ -20,17 +22,14 @@ export default function RegisterPage() {
   const [step, setStep] = useState('form')
   const [errors, setErrors] = useState({})
 
-  const validate = () => {
-    const e = {}
-    if (!form.fullName || form.fullName.trim().length < 3) e.fullName = 'Họ tên ít nhất 3 ký tự'
-    if (!form.email) e.email = 'Email không được để trống'
-    else if (!/^[^\s@]+@gmail\.com$/i.test(form.email.trim())) e.email = 'Vui lòng dùng địa chỉ Gmail'
-    if (!form.password || form.password.length < 6) e.password = 'Mật khẩu ít nhất 6 ký tự'
-    if (form.password !== form.confirmPassword) e.confirmPassword = 'Mật khẩu xác nhận không khớp'
-    if (!form.phone) e.phone = 'Số điện thoại không được để trống'
-    if (!form.address) e.address = 'Địa chỉ không được để trống'
-    return e
-  }
+  const validate = () => buildErrors({
+    fullName: validateFullName(form.fullName),
+    email: validateGmail(form.email),
+    password: validatePassword(form.password),
+    confirmPassword: validateConfirmPassword(form.password, form.confirmPassword),
+    phone: validatePhone(form.phone),
+    address: validateAddress(form.address),
+  })
 
   const registrationPayload = () => ({
     email: form.email.trim(),
@@ -105,7 +104,9 @@ export default function RegisterPage() {
         <div className="card">
           <div className="card-body">
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <i className="fa-solid fa-bolt" style={{ fontSize: 32, color: '#2563eb', marginBottom: 8 }} />
+              <div className="mb-3 flex justify-center">
+                <BrandLogo iconClassName="h-12 w-12 rounded-2xl" textClassName="text-2xl" />
+              </div>
               <h1 style={{ fontSize: 22, fontWeight: 700 }}>
                 {step === 'form' ? 'Tạo tài khoản' : 'Xác nhận Gmail'}
               </h1>
@@ -160,7 +161,7 @@ export default function RegisterPage() {
             )}
 
             <p className="text-sm text-muted mt-4" style={{ textAlign: 'center' }}>
-              Đã có tài khoản? <Link to="/login" style={{ color: '#2563eb', fontWeight: 500 }}>Đăng nhập</Link>
+              Đã có tài khoản? <Link to="/login" style={{ color: '#D70018', fontWeight: 700 }}>Đăng nhập</Link>
             </p>
           </div>
         </div>

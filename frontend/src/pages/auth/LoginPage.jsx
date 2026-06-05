@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from 'react-toastify'
 import { getGoogleLoginUrl } from '../../api/auth'
+import BrandLogo from '../../components/common/BrandLogo'
 
 export default function LoginPage() {
   const { signIn, loading } = useAuth()
@@ -22,7 +23,7 @@ export default function LoginPage() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     try {
-      const user = await signIn(form.email, form.password)
+      const user = await signIn(form.email.trim(), form.password)
       toast.success('Đăng nhập thành công!')
       navigate('/')
     } catch (err) {
@@ -44,7 +45,9 @@ export default function LoginPage() {
         <div className="card">
           <div className="card-body">
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <i className="fa-solid fa-bolt" style={{ fontSize: 32, color: '#2563eb', marginBottom: 8 }} />
+              <div className="mb-3 flex justify-center">
+                <BrandLogo iconClassName="h-12 w-12 rounded-2xl" textClassName="text-2xl" />
+              </div>
               <h1 style={{ fontSize: 22, fontWeight: 700 }}>Đăng nhập SmartShop</h1>
               <p className="text-muted text-sm mt-1">Chào mừng bạn trở lại!</p>
             </div>
@@ -66,20 +69,20 @@ export default function LoginPage() {
               </button>
             </form>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-              <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
-              <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>Hoặc</span>
-              <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+              <div style={{ flex: 1, height: 1, background: '#E5E7EB' }} />
+              <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>Hoặc</span>
+              <div style={{ flex: 1, height: 1, background: '#E5E7EB' }} />
             </div>
             <button type="button" className="btn btn-full btn-lg" onClick={handleGoogleLogin}
-              style={{ background: '#fff', border: '1px solid #d1d5db', color: '#374151', justifyContent: 'center' }}>
-              <i className="fa-brands fa-google" style={{ color: '#ea4335' }} />
+              style={{ background: '#fff', border: '1px solid #E5E7EB', color: '#111827', justifyContent: 'center' }}>
+              <i className="fa-brands fa-google" style={{ color: '#D70018' }} />
               Đăng nhập với Google
             </button>
             <p className="text-sm text-muted mt-4" style={{ textAlign: 'center' }}>
-              Chưa có tài khoản? <Link to="/register" style={{ color: '#2563eb', fontWeight: 500 }}>Đăng ký ngay</Link>
+              Chưa có tài khoản? <Link to="/register" style={{ color: '#D70018', fontWeight: 700 }}>Đăng ký ngay</Link>
             </p>
             <p className="text-sm mt-2" style={{ textAlign: 'center' }}>
-              <Link to="/forgot-password" style={{ color: '#2563eb', fontWeight: 500 }}>Quên mật khẩu?</Link>
+              <Link to="/forgot-password" style={{ color: '#D70018', fontWeight: 700 }}>Quên mật khẩu?</Link>
             </p>
           </div>
         </div>

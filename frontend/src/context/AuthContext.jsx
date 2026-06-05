@@ -100,6 +100,10 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = () => {
+    const refreshToken = localStorage.getItem('refreshToken')
+    if (refreshToken) {
+      authApi.logout(refreshToken).catch(() => {})
+    }
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')

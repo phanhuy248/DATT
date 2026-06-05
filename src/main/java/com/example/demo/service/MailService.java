@@ -28,6 +28,15 @@ public class MailService {
         this.mailSender = mailSenderProvider.getIfAvailable();
     }
 
+    public void sendPasswordResetOtp(String email, String otp, long expirationMinutes) {
+        String body = "Mã OTP đặt lại mật khẩu SmartShop của bạn là: " + otp
+                + "\nMã có hiệu lực trong " + expirationMinutes + " phút."
+                + "\nNếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.";
+        if (!send(email, "SmartShop - Mã OTP đặt lại mật khẩu", body)) {
+            throw new IllegalStateException("Không thể gửi email OTP. Vui lòng kiểm tra cấu hình SMTP");
+        }
+    }
+
     public void sendPasswordReset(String email, String resetLink) {
         send(email, "SmartShop - Đặt lại mật khẩu",
                 "Bạn có thể đặt lại mật khẩu tại liên kết sau: " + resetLink);

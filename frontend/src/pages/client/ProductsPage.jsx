@@ -1,14 +1,29 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getProducts } from '../../api/products'
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import { getCategories } from '../../api/categories'
+import { getProducts } from '../../api/products'
 import ProductCard from '../../components/product/ProductCard'
+import Button from '../../components/ui/Button'
+import SectionHeader from '../../components/ui/SectionHeader'
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Mới nhất' },
   { value: 'bestseller', label: 'Bán chạy' },
   { value: 'price_asc', label: 'Giá tăng dần' },
   { value: 'price_desc', label: 'Giá giảm dần' },
+]
+
+const BRAND_OPTIONS = ['Apple', 'Samsung', 'ASUS', 'Sony', 'Lenovo', 'HP', 'Dell', 'Acer', 'MSI', 'Realme', 'Vivo', 'Xiaomi', 'Oppo', 'Huawei']
+
+const TARGET_OPTIONS = [
+  { value: 'gaming', label: 'Gaming' },
+  { value: 'lap trinh java', label: 'Lập trình Java' },
+  { value: 'lap trinh', label: 'Lập trình' },
+  { value: 'sinh vien', label: 'Sinh viên' },
+  { value: 'chup anh', label: 'Chụp ảnh đẹp' },
+  { value: 'pin trau', label: 'Pin trâu' },
+  { value: 'van phong', label: 'Văn phòng' },
 ]
 
 export default function ProductsPage() {
@@ -18,136 +33,250 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false)
 
   const keyword = searchParams.get('keyword') || ''
-  const categoryId = searchParams.get('categoryId') || ''
+  const categoryIdParam = searchParams.get('categoryId') || ''
+  const categoryName = searchParams.get('categoryName') || searchParams.get('category') || ''
   const minPrice = searchParams.get('minPrice') || ''
   const maxPrice = searchParams.get('maxPrice') || ''
+  const brand = searchParams.get('brand') || ''
+  const target = searchParams.get('target') || ''
   const sortBy = searchParams.get('sortBy') || 'newest'
-  const page = parseInt(searchParams.get('page') || '0')
+  const page = parseInt(searchParams.get('page') || '0', 10)
+  const aiTags = (searchParams.get('aiTags') || '').split('|').filter(Boolean)
+  const selectedCategoryId =
+    categoryIdParam ||
+    (categoryName
+      ? categories.find((category) => category.name.toLowerCase() === categoryName.toLowerCase())?.id?.toString() || ''
+      : '')
 
-  const [filterInput, setFilterInput] = useState({ keyword, minPrice, maxPrice })
+  const [filterInput, setFilterInput] = useState({ keyword, minPrice, maxPrice, brand, target })
 
-  useEffect(() => { getCategories().then(setCategories) }, [])
+  useEffect(() => {
+    getCategories().then(setCategories)
+  }, [])
+
+  useEffect(() => {
+    setFilterInput({ keyword, minPrice, maxPrice, brand, target })
+  }, [keyword, minPrice, maxPrice, brand, target])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
       const params = { sortBy, page, size: 12 }
       if (keyword) params.keyword = keyword
-      if (categoryId) params.categoryId = categoryId
+      if (selectedCategoryId) params.categoryId = selectedCategoryId
+      else if (categoryName) params.categoryName = categoryName
       if (minPrice) params.minPrice = minPrice
       if (maxPrice) params.maxPrice = maxPrice
+      if (brand) params.brand = brand
+      if (target) params.target = target
       const result = await getProducts(params)
       setData(result)
     } finally {
       setLoading(false)
     }
-  }, [keyword, categoryId, minPrice, maxPrice, sortBy, page])
+  }, [keyword, selectedCategoryId, categoryName, minPrice, maxPrice, brand, target, sortBy, page])
 
-  useEffect(() => { fetchProducts() }, [fetchProducts])
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
 
   const setParam = (key, value) => {
-    const p = Object.fromEntries(searchParams)
-    if (value !== undefined && value !== null && value !== '') p[key] = String(value); else delete p[key]
-    if (key !== 'page') p.page = '0'
-    setSearchParams(p)
+    const next = Object.fromEntries(searchParams)
+    if (value !== undefined && value !== null && value !== '') next[key] = String(value)
+    else delete next[key]
+    if (key === 'categoryId') {
+      delete next.category
+      delete next.categoryName
+    }
+    delete next.ram
+    if (key !== 'page') next.page = '0'
+    setSearchParams(next)
   }
 
-  const applyFilter = (e) => {
-    e.preventDefault()
-    const p = Object.fromEntries(searchParams)
-    if (filterInput.keyword) p.keyword = filterInput.keyword; else delete p.keyword
-    if (filterInput.minPrice) p.minPrice = filterInput.minPrice; else delete p.minPrice
-    if (filterInput.maxPrice) p.maxPrice = filterInput.maxPrice; else delete p.maxPrice
-    p.page = '0'
-    setSearchParams(p)
+  const applyFilter = (event) => {
+    event.preventDefault()
+    const next = Object.fromEntries(searchParams)
+    if (filterInput.keyword) next.keyword = filterInput.keyword
+    else delete next.keyword
+    if (filterInput.minPrice) next.minPrice = filterInput.minPrice
+    else delete next.minPrice
+    if (filterInput.maxPrice) next.maxPrice = filterInput.maxPrice
+    else delete next.maxPrice
+    if (filterInput.brand) next.brand = filterInput.brand
+    else delete next.brand
+    if (filterInput.target) next.target = filterInput.target
+    else delete next.target
+    delete next.ram
+    next.page = '0'
+    setSearchParams(next)
+  }
+
+  const resetFilters = () => {
+    setFilterInput({ keyword: '', minPrice: '', maxPrice: '', brand: '', target: '' })
+    setSearchParams({})
   }
 
   return (
-    <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 24, alignItems: 'start' }}>
+    <div className="bg-shop-bg">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 lg:px-6">
+        <SectionHeader title="Tất cả sản phẩm" subtitle="Tìm kiếm và lọc sản phẩm công nghệ chính hãng tại SMARTSHOP" />
 
-        {/* Sidebar Filters */}
-        <aside>
-          <div className="card">
-            <div className="card-body">
-              <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Bộ lọc</h3>
-              <form onSubmit={applyFilter}>
-                <div className="form-group">
-                  <label className="form-label">Tìm kiếm</label>
-                  <input className="form-control" placeholder="Tên sản phẩm..."
-                    value={filterInput.keyword}
-                    onChange={e => setFilterInput({ ...filterInput, keyword: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Danh mục</label>
-                  <select className="form-control" value={categoryId}
-                    onChange={e => setParam('categoryId', e.target.value)}>
-                    <option value="">Tất cả danh mục</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Giá từ (₫)</label>
-                  <input className="form-control" type="number" placeholder="0"
-                    value={filterInput.minPrice}
-                    onChange={e => setFilterInput({ ...filterInput, minPrice: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Giá đến (₫)</label>
-                  <input className="form-control" type="number" placeholder="100,000,000"
-                    value={filterInput.maxPrice}
-                    onChange={e => setFilterInput({ ...filterInput, maxPrice: e.target.value })} />
-                </div>
-                <button type="submit" className="btn btn-primary btn-full">Áp dụng</button>
-                <button type="button" className="btn btn-secondary btn-full mt-2"
-                  onClick={() => { setFilterInput({ keyword: '', minPrice: '', maxPrice: '' }); setSearchParams({}) }}>
-                  Xóa bộ lọc
-                </button>
-              </form>
+        <div className="products-layout grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="rounded-2xl border border-shop-border bg-shop-surface p-5 shadow-sm">
+            <div className="mb-5 flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-shop-red" />
+              <h3 className="text-base font-bold text-shop-text">Bộ lọc</h3>
             </div>
-          </div>
-        </aside>
 
-        {/* Product Grid */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <p className="text-muted text-sm">{data.totalElements} sản phẩm</p>
-            <select className="form-control" style={{ width: 160 }} value={sortBy}
-              onChange={e => setParam('sortBy', e.target.value)}>
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
+            <form onSubmit={applyFilter} className="space-y-4">
+              <Field label="Tìm kiếm">
+                <input
+                  className="form-control"
+                  placeholder="Tên sản phẩm..."
+                  value={filterInput.keyword}
+                  onChange={(event) => setFilterInput({ ...filterInput, keyword: event.target.value })}
+                />
+              </Field>
 
-          {loading ? <div className="spinner" /> :
-            data.content.length === 0 ? (
-              <div className="empty-state">
-                <i className="fa-solid fa-box-open" />
-                <p>Không tìm thấy sản phẩm nào</p>
+              <Field label="Danh mục">
+                <select className="form-control" value={selectedCategoryId} onChange={(event) => setParam('categoryId', event.target.value)}>
+                  <option value="">Tất cả danh mục</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Thương hiệu">
+                <select
+                  className="form-control"
+                  value={filterInput.brand}
+                  onChange={(event) => setFilterInput({ ...filterInput, brand: event.target.value })}
+                >
+                  <option value="">Tất cả thương hiệu</option>
+                  {BRAND_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Nhu cầu">
+                <select
+                  className="form-control"
+                  value={filterInput.target}
+                  onChange={(event) => setFilterInput({ ...filterInput, target: event.target.value })}
+                >
+                  <option value="">Tất cả nhu cầu</option>
+                  {TARGET_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Giá từ">
+                <input
+                  className="form-control"
+                  type="number"
+                  placeholder="0"
+                  value={filterInput.minPrice}
+                  onChange={(event) => setFilterInput({ ...filterInput, minPrice: event.target.value })}
+                />
+              </Field>
+
+              <Field label="Giá đến">
+                <input
+                  className="form-control"
+                  type="number"
+                  placeholder="100000000"
+                  value={filterInput.maxPrice}
+                  onChange={(event) => setFilterInput({ ...filterInput, maxPrice: event.target.value })}
+                />
+              </Field>
+
+              <Button type="submit" className="w-full">
+                Áp dụng
+              </Button>
+              <Button type="button" variant="secondary" className="w-full" onClick={resetFilters}>
+                Xóa bộ lọc
+              </Button>
+            </form>
+          </aside>
+
+          <section className="min-w-0">
+            <div className="product-list-toolbar mb-5 flex items-center justify-between gap-4 rounded-2xl border border-shop-border bg-shop-surface px-5 py-4 shadow-sm">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-shop-muted">{data.totalElements || 0} sản phẩm</p>
+                {aiTags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {aiTags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-shop-softBlue px-3 py-1 text-xs font-bold text-shop-red">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <select className="form-control max-w-[180px]" value={sortBy} onChange={(event) => setParam('sortBy', event.target.value)}>
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {loading ? (
+              <div className="spinner" />
+            ) : data.content.length === 0 ? (
+              <div className="empty-state rounded-2xl border border-shop-border bg-shop-surface shadow-sm">
+                <p>Không tìm thấy sản phẩm phù hợp</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-                {data.content.map(p => <ProductCard key={p.id} product={p} />)}
+              <div className="responsive-product-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {data.content.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
               </div>
-            )
-          }
+            )}
 
-          {/* Pagination */}
-          {data.totalPages > 1 && (
-            <div className="pagination">
-              <button className="page-btn" disabled={page === 0} onClick={() => setParam('page', page - 1)}>
-                <i className="fa-solid fa-angle-left" />
-              </button>
-              {Array.from({ length: data.totalPages }, (_, i) => (
-                <button key={i} className={`page-btn ${i === page ? 'active' : ''}`}
-                  onClick={() => setParam('page', i)}>{i + 1}</button>
-              ))}
-              <button className="page-btn" disabled={page >= data.totalPages - 1} onClick={() => setParam('page', page + 1)}>
-                <i className="fa-solid fa-angle-right" />
-              </button>
-            </div>
-          )}
+            {data.totalPages > 1 && (
+              <div className="mt-8 flex justify-center gap-2">
+                <Button variant="icon" disabled={page === 0} onClick={() => setParam('page', page - 1)} aria-label="Trang trước">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: data.totalPages }, (_, index) => (
+                  <Button
+                    key={index}
+                    variant={index === page ? 'primary' : 'secondary'}
+                    className="h-10 w-10 px-0"
+                    onClick={() => setParam('page', index)}
+                  >
+                    {index + 1}
+                  </Button>
+                ))}
+                <Button variant="icon" disabled={page >= data.totalPages - 1} onClick={() => setParam('page', page + 1)} aria-label="Trang sau">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-bold text-shop-text">{label}</span>
+      {children}
+    </label>
   )
 }

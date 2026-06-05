@@ -39,8 +39,9 @@ public class ProductService {
 
     // Map sang DTO bên trong @Transactional để tránh LazyInitializationException khi truy cập reviews
     @Transactional(readOnly = true)
-    public Page<ProductDTO> getProductsPageFiltered(String keyword, Long categoryId,
-            BigDecimal minPrice, BigDecimal maxPrice, String sortBy, int page, int size) {
+    public Page<ProductDTO> getProductsPageFiltered(String keyword, Long categoryId, String categoryName,
+            BigDecimal minPrice, BigDecimal maxPrice, String brand, String ram, String target,
+            String sortBy, int page, int size) {
         Sort sort = switch (sortBy != null ? sortBy : "") {
             case "price_asc" -> Sort.by(Sort.Direction.ASC, "price");
             case "price_desc" -> Sort.by(Sort.Direction.DESC, "price");
@@ -50,7 +51,7 @@ public class ProductService {
         };
         Pageable pageable = PageRequest.of(page, size, sort);
         return productRepository.findAll(
-                ProductSpecification.filter(keyword, categoryId, minPrice, maxPrice), pageable)
+                ProductSpecification.filter(keyword, categoryId, categoryName, minPrice, maxPrice, brand, ram, target), pageable)
                 .map(ProductDTO::from);
     }
 
@@ -120,6 +121,12 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductDTO> getTopSellingProducts(int limit) {
         return productRepository.findTopSellingProducts(PageRequest.of(0, limit))
+                .stream().map(ProductDTO::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDTO> getLowStockProducts(long threshold, int limit) {
+        return productRepository.findLowStockProducts(threshold, PageRequest.of(0, limit))
                 .stream().map(ProductDTO::from).toList();
     }
 

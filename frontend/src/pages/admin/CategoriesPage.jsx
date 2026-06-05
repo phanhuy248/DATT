@@ -41,7 +41,7 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700 }}>Quản lý danh mục</h1>
         <button className="btn btn-primary" onClick={openCreate}>
           <i className="fa-solid fa-plus" /> Thêm danh mục
@@ -50,8 +50,8 @@ export default function CategoriesPage() {
 
       {loading ? <div className="spinner" /> : (
         <div className="card">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+            <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
                   {['ID', 'Tên danh mục', 'Mô tả', 'Thao tác'].map(h => (
@@ -64,10 +64,10 @@ export default function CategoriesPage() {
                   ? <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chưa có danh mục</td></tr>
                   : categories.map(cat => (
                     <tr key={cat.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>#{cat.id}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{cat.name}</td>
-                      <td style={{ padding: '12px 16px', color: '#6b7280' }}>{cat.description || '—'}</td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td data-label="ID" style={{ padding: '12px 16px', color: '#6b7280' }}>#{cat.id}</td>
+                      <td data-label="Tên danh mục" style={{ padding: '12px 16px', fontWeight: 600 }}>{cat.name}</td>
+                      <td data-label="Mô tả" style={{ padding: '12px 16px', color: '#6b7280' }}>{cat.description || '—'}</td>
+                      <td data-label="Thao tác" style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(cat)}>
                             <i className="fa-solid fa-pen" />
@@ -86,7 +86,7 @@ export default function CategoriesPage() {
       )}
 
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+        <div className="admin-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
           <div className="card" style={{ width: '100%', maxWidth: 440 }}>
             <div className="card-body">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -104,7 +104,7 @@ export default function CategoriesPage() {
                   <label className="form-label">Mô tả</label>
                   <textarea className="form-control" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <div className="admin-modal-actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button>
                   <button type="submit" className="btn btn-primary" disabled={saving}>
                     {saving ? 'Đang lưu...' : 'Lưu'}

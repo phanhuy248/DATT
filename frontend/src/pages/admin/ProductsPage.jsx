@@ -110,9 +110,9 @@ export default function AdminProductsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700 }}>Quản lý sản phẩm</h1>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="admin-page-actions" style={{ display: 'flex', gap: 10 }}>
           <input className="form-control" style={{ width: 200 }} placeholder="Tìm kiếm..." value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} />
           <input ref={importInputRef} type="file" accept="application/json,.json" onChange={handleImportJson} style={{ display: 'none' }} />
           <button className="btn btn-secondary" disabled={importing} onClick={() => importInputRef.current?.click()}>
@@ -125,8 +125,8 @@ export default function AdminProductsPage() {
       {loading ? <div className="spinner" /> : (
         <>
           <div className="card">
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+            <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+              <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
                     {['Ảnh', 'Tên sản phẩm', 'Danh mục', 'Giá', 'Tồn kho', 'Đã bán', 'Thao tác'].map(h => (
@@ -139,7 +139,7 @@ export default function AdminProductsPage() {
                     ? <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Không có sản phẩm</td></tr>
                     : data.content.map(p => (
                       <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td data-label="Ảnh" style={{ padding: '10px 14px' }}>
                           <div style={{ width: 48, height: 48, background: '#f8fafc', borderRadius: 6, overflow: 'hidden' }}>
                             {p.image
                               ? <img src={getImageUrl(p.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -147,19 +147,19 @@ export default function AdminProductsPage() {
                                   <i className="fa-solid fa-image" style={{ color: '#cbd5e1' }} /></div>}
                           </div>
                         </td>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td data-label="Tên sản phẩm" style={{ padding: '10px 14px' }}>
                           <p style={{ fontWeight: 600, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</p>
                           <p style={{ fontSize: 12, color: '#9ca3af' }}>{p.factory}</p>
                         </td>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td data-label="Danh mục" style={{ padding: '10px 14px' }}>
                           {p.categoryName ? <span className="badge badge-info">{p.categoryName}</span> : <span style={{ color: '#9ca3af' }}>—</span>}
                         </td>
-                        <td style={{ padding: '10px 14px', fontWeight: 600, color: '#2563eb', whiteSpace: 'nowrap' }}>{p.price?.toLocaleString('vi-VN')}₫</td>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td data-label="Giá" style={{ padding: '10px 14px', fontWeight: 600, color: '#2563eb', whiteSpace: 'nowrap' }}>{p.price?.toLocaleString('vi-VN')}₫</td>
+                        <td data-label="Tồn kho" style={{ padding: '10px 14px' }}>
                           <span style={{ color: p.quantity <= 5 ? '#dc2626' : '#16a34a', fontWeight: 500 }}>{p.quantity}</span>
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#6b7280' }}>{p.sold}</td>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td data-label="Đã bán" style={{ padding: '10px 14px', color: '#6b7280' }}>{p.sold}</td>
+                        <td data-label="Thao tác" style={{ padding: '10px 14px' }}>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}><i className="fa-solid fa-pen" /></button>
                             <button className="btn btn-secondary btn-sm" onClick={() => handleImportStock(p)}><i className="fa-solid fa-boxes-stacked" /></button>
@@ -183,7 +183,7 @@ export default function AdminProductsPage() {
       )}
 
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, overflowY: 'auto' }}>
+        <div className="admin-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, overflowY: 'auto' }}>
           <div className="card" style={{ width: '100%', maxWidth: 640, margin: 'auto' }}>
             <div className="card-body">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -191,7 +191,7 @@ export default function AdminProductsPage() {
                 <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7280' }}>×</button>
               </div>
               <form onSubmit={handleSave}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                <div className="admin-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                   {f('name', 'Tên sản phẩm', 'text', true)}
                   {f('price', 'Giá (₫)', 'number', true)}
                   {f('quantity', 'Số lượng', 'number', true)}
@@ -217,7 +217,7 @@ export default function AdminProductsPage() {
 
                 <div className="form-group">
                   <label className="form-label">Ảnh sản phẩm</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div className="admin-avatar-row" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     {imagePreview && (
                       <div style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', flexShrink: 0 }}>
                         <img src={imagePreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -230,7 +230,7 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                <div className="admin-modal-actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button>
                   <button type="submit" className="btn btn-primary" disabled={saving}>
                     {saving ? <><i className="fa-solid fa-spinner fa-spin" /> Đang lưu...</> : 'Lưu sản phẩm'}

@@ -1,153 +1,129 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useCart } from '../../context/CartContext'
-import { useAuth } from '../../context/AuthContext'
+import { Package, ShoppingCart, Star } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { useState } from 'react'
+import Button from '../ui/Button'
+import { useAuth } from '../../context/AuthContext'
+import { useCart } from '../../context/CartContext'
 import { getImageUrl } from '../../utils/image'
 
-const BADGE_STYLES = {
-  HOT:  { bg: '#cc0000', label: '🔥 HOT' },
-  NEW:  { bg: '#16a34a', label: '✨ MỚI' },
-  SALE: { bg: '#f59e0b', label: '⚡ SALE' },
+const formatPrice = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`
+
+const badgeStyles = {
+  HOT: 'bg-shop-red text-white',
+  NEW: 'bg-shop-success text-white',
+  SALE: 'bg-shop-warning text-white',
+  OUT: 'bg-shop-navy text-white',
 }
 
-export default function ProductCard({ product, badge }) {
+function resolveBadge(product, badge) {
+  if (product?.quantity === 0) return { label: 'Hết hàng', tone: 'OUT' }
+  const label = badge || product?.badge
+  if (!label) return null
+  const upper = String(label).toUpperCase()
+  if (upper.includes('SALE')) return { label, tone: 'SALE' }
+  if (upper.includes('NEW') || upper.includes('MỚI')) return { label, tone: 'NEW' }
+  return { label, tone: 'HOT' }
+}
+
+function resolveOldPrice(product) {
+  const oldPrice = Number(product?.oldPrice || product?.originalPrice || 0)
+  const price = Number(product?.price || 0)
+  if (oldPrice > price) return oldPrice
+  if (product?.discountPercent && price > 0) return Math.round((price / (1 - Number(product.discountPercent) / 100)) / 1000) * 1000
+  return 0
+}
+
+export default function ProductCard({ product, badge, disableCart = false }) {
   const { addToCart, loading } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [hovered, setHovered] = useState(false)
 
-  const handleAddToCart = async (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!user) { navigate('/login'); return }
+  const imageUrl = getImageUrl(product?.images?.[0] || product?.image || product?.thumbnail || product?.productImage)
+  const rating = Number(product?.averageRating || product?.rating || 0)
+  const reviewCount = Number(product?.reviewCount || product?.reviews || 0)
+  const oldPrice = resolveOldPrice(product)
+  const cardBadge = resolveBadge(product, badge)
+  const hasStock = product?.quantity === undefined || Number(product.quantity) > 0
+  const canAddToCart = !disableCart && hasStock && product?.id && !Number.isNaN(Number(product.id))
+
+  const handleAddToCart = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (!canAddToCart) {
+      navigate('/products')
+      return
+    }
+
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
     try {
       await addToCart(product.id, 1)
-      toast.success('Đã thêm vào giỏ hàng!')
+      toast.success('Đã thêm vào giỏ hàng')
     } catch {
       toast.error('Không thể thêm vào giỏ hàng')
     }
   }
 
-  const badgeStyle = badge ? BADGE_STYLES[badge] : null
-  const originalPrice = Math.round(product.price * 1.22 / 1000) * 1000
-
   return (
-    <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-      <div
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          background: '#fff',
-          border: `1px solid ${hovered ? '#cc0000' : '#e0e0e0'}`,
-          borderRadius: 6,
-          overflow: 'hidden',
-          transition: 'all 0.2s',
-          boxShadow: hovered ? '0 6px 20px rgba(204,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
-          transform: hovered ? 'translateY(-2px)' : 'none',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Image area */}
-        <div style={{ position: 'relative', paddingTop: '75%', background: '#f8f8f8', overflow: 'hidden', flexShrink: 0 }}>
-          {product.image ? (
-            <img src={getImageUrl(product.image)} alt={product.name}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', padding: 10, transition: 'transform 0.3s', transform: hovered ? 'scale(1.06)' : 'scale(1)' }} />
+    <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-shop-border bg-shop-surface shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-shop-red hover:shadow-md">
+      <Link to={product?.id ? `/products/${product.id}` : '/products'} className="relative block bg-shop-softBlue/80">
+        <div className="aspect-[4/3] p-3">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={product?.name || 'Sản phẩm SMARTSHOP'}
+              className="h-full w-full object-contain transition duration-200 group-hover:scale-105"
+            />
           ) : (
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="fa-solid fa-image" style={{ fontSize: 36, color: '#ccc' }} />
-            </div>
-          )}
-
-          {badgeStyle && (
-            <div style={{
-              position: 'absolute', top: 6, left: 6,
-              background: badgeStyle.bg, color: '#fff',
-              fontSize: 10, fontWeight: 800, padding: '2px 6px',
-              borderRadius: 3, letterSpacing: 0.3,
-            }}>
-              {badgeStyle.label}
-            </div>
-          )}
-
-          <button
-            onClick={e => e.preventDefault()}
-            style={{
-              position: 'absolute', top: 6, right: 6,
-              width: 28, height: 28, background: '#fff',
-              border: '1px solid #ddd', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', opacity: hovered ? 1 : 0,
-              transition: 'all 0.2s', boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-            }}
-          >
-            <i className="fa-regular fa-heart" style={{ fontSize: 11, color: '#cc0000' }} />
-          </button>
-
-          {product.quantity === 0 && (
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(255,255,255,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ background: '#555', color: '#fff', fontSize: 11, padding: '5px 12px', borderRadius: 4, fontWeight: 600 }}>Hết hàng</span>
+            <div className="flex h-full w-full items-center justify-center text-shop-muted">
+              <Package className="h-10 w-10" />
             </div>
           )}
         </div>
+        {cardBadge && (
+          <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase ${badgeStyles[cardBadge.tone]}`}>
+            {cardBadge.label}
+          </span>
+        )}
+      </Link>
 
-        {/* Info */}
-        <div style={{ padding: '10px 10px 12px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-          <h3 style={{
-            fontSize: 13, fontWeight: 500, color: '#222', marginBottom: 6,
-            lineHeight: 1.45, minHeight: 38, flex: 1,
-            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          }}>
-            {product.name}
-          </h3>
+      <div className="flex flex-1 flex-col p-4">
+        <Link
+          to={product?.id ? `/products/${product.id}` : '/products'}
+          className="line-clamp-2 min-h-[40px] text-sm font-bold leading-5 text-shop-text transition hover:text-shop-red"
+        >
+          {product?.name || 'Sản phẩm SMARTSHOP'}
+        </Link>
 
-          {/* Stars */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 8 }}>
-            {[1,2,3,4,5].map(s => (
-              <i key={s} className={`fa-${s <= Math.round(product.averageRating || 4) ? 'solid' : 'regular'} fa-star`}
-                style={{ fontSize: 10, color: '#f59e0b' }} />
-            ))}
-            {product.reviewCount > 0 && (
-              <span style={{ fontSize: 10, color: '#999', marginLeft: 2 }}>({product.reviewCount})</span>
-            )}
-          </div>
-
-          {/* Price */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: '#aaa', textDecoration: 'line-through', lineHeight: 1.2, marginBottom: 2 }}>
-              {originalPrice.toLocaleString('vi-VN')}₫
-            </div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#cc0000', lineHeight: 1 }}>
-              {product.price.toLocaleString('vi-VN')}₫
-            </div>
-            {product.quantity > 0 && product.quantity <= 5 && (
-              <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 3, fontWeight: 600 }}>
-                Còn {product.quantity} sản phẩm
-              </div>
-            )}
-          </div>
-
-          {/* Cart button */}
-          <button
-            onClick={handleAddToCart}
-            disabled={loading || product.quantity === 0}
-            style={{
-              background: hovered ? '#b30000' : '#cc0000',
-              color: '#fff', border: 'none', borderRadius: 4,
-              padding: '7px 8px', fontSize: 11, cursor: product.quantity === 0 ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              opacity: product.quantity === 0 ? 0.4 : 1,
-              transition: 'background 0.15s', whiteSpace: 'nowrap',
-              fontWeight: 600, width: '100%',
-            }}
-          >
-            <i className="fa-solid fa-cart-plus" style={{ fontSize: 11 }} />
-            <span>Thêm vào giỏ</span>
-          </button>
+        <div className="mt-2 flex items-center gap-1.5">
+          <Star className="h-4 w-4 fill-shop-warning text-shop-warning" />
+          <span className="text-xs font-bold text-shop-text">{rating > 0 ? rating.toFixed(1) : '4.8'}</span>
+          <span className="text-xs font-medium text-shop-muted">({reviewCount})</span>
         </div>
+
+        <div className="mt-3 min-h-[54px]">
+          {oldPrice > 0 && <p className="text-xs font-medium text-shop-muted line-through">{formatPrice(oldPrice)}</p>}
+          <p className="mt-1 text-[17px] font-black leading-none text-shop-red">{formatPrice(product?.price)}</p>
+          {product?.quantity > 0 && product.quantity <= 5 && (
+            <p className="mt-2 text-xs font-bold text-shop-warning">Còn {product.quantity} sản phẩm</p>
+          )}
+        </div>
+
+        <Button
+          className="product-card-action mt-auto w-full"
+          disabled={loading || !hasStock}
+          onClick={handleAddToCart}
+          size="md"
+          variant={canAddToCart ? 'primary' : 'secondary'}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          {canAddToCart ? 'Thêm vào giỏ' : 'Xem sản phẩm'}
+        </Button>
       </div>
-    </Link>
+    </article>
   )
 }

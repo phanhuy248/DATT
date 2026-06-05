@@ -4,6 +4,7 @@ import com.example.demo.domain.ContactMessage;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.ContactMessageRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class ContactController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<ContactMessage>> create(@RequestBody ContactMessage message) {
+    public ResponseEntity<ApiResponse<ContactMessage>> create(@Valid @RequestBody ContactMessage message) {
         return ResponseEntity.status(201).body(ApiResponse.ok("Gửi liên hệ thành công", contactRepository.save(message)));
     }
 

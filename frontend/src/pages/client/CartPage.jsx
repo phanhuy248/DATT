@@ -1,7 +1,10 @@
-import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useCart } from '../../context/CartContext'
+import { CreditCard, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import Button from '../../components/ui/Button'
+import SectionHeader from '../../components/ui/SectionHeader'
+import { useCart } from '../../context/CartContext'
+import { getImageUrl } from '../../utils/image'
 
 export default function CartPage() {
   const { cart, loading, updateItem, removeItem } = useCart()
@@ -9,103 +12,128 @@ export default function CartPage() {
 
   const handleUpdate = async (cartItemId, quantity) => {
     if (quantity < 1) return
-    try { await updateItem(cartItemId, quantity) }
-    catch { toast.error('Không thể cập nhật số lượng') }
+    try {
+      await updateItem(cartItemId, quantity)
+    } catch {
+      toast.error('Không thể cập nhật số lượng')
+    }
   }
 
   const handleRemove = async (cartItemId) => {
-    try { await removeItem(cartItemId); toast.success('Đã xóa sản phẩm') }
-    catch { toast.error('Không thể xóa sản phẩm') }
+    try {
+      await removeItem(cartItemId)
+      toast.success('Đã xóa sản phẩm')
+    } catch {
+      toast.error('Không thể xóa sản phẩm')
+    }
   }
 
   if (!cart.items || cart.items.length === 0) {
     return (
-      <div className="container" style={{ paddingTop: 60 }}>
-        <div className="empty-state">
-          <i className="fa-solid fa-cart-shopping" />
-          <p>Giỏ hàng của bạn đang trống</p>
-          <Link to="/products" className="btn btn-primary mt-4">Tiếp tục mua sắm</Link>
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-5 lg:px-6">
+        <div className="rounded-2xl border border-shop-border bg-shop-surface px-6 py-14 text-center shadow-sm">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-shop-softBlue text-shop-red">
+            <ShoppingCart className="h-8 w-8" />
+          </div>
+          <h1 className="text-xl font-bold text-shop-text">Giỏ hàng của bạn đang trống</h1>
+          <p className="mt-2 text-sm font-medium text-shop-muted">Hãy chọn sản phẩm trước khi thanh toán.</p>
+          <Button to="/products" className="mt-6">
+            Tiếp tục mua sắm
+          </Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container" style={{ paddingTop: 32, paddingBottom: 40 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
-        <i className="fa-solid fa-cart-shopping" style={{ marginRight: 10, color: '#2563eb' }} />
-        Giỏ hàng ({cart.totalItems} sản phẩm)
-      </h1>
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 lg:px-6">
+      <SectionHeader title={`Giỏ hàng (${cart.totalItems} sản phẩm)`} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
-        {/* Items */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {cart.items.map(item => (
-            <div key={item.cartItemId} className="card">
-              <div className="card-body" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <Link to={`/products/${item.productId}`}>
-                  <div style={{ width: 80, height: 80, background: '#f8fafc', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
-                    {item.productImage
-                      ? <img src={`/uploads/${item.productImage}`} alt={item.productName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <i className="fa-solid fa-image" style={{ color: '#cbd5e1', fontSize: 24 }} />
-                        </div>
-                    }
+      <div className="cart-layout grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-4">
+          {cart.items.map((item) => (
+            <article key={item.cartItemId} className="rounded-2xl border border-shop-border bg-shop-surface p-5 shadow-sm">
+              <div className="cart-item-body flex items-center gap-4">
+                <Link to={`/products/${item.productId}`} className="shrink-0">
+                  <div className="h-24 w-24 overflow-hidden rounded-2xl bg-shop-softBlue">
+                    {item.productImage ? (
+                      <img src={getImageUrl(item.productImage)} alt={item.productName} className="h-full w-full object-contain p-2" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-shop-muted">
+                        <Package className="h-7 w-7" />
+                      </div>
+                    )}
                   </div>
                 </Link>
-                <div style={{ flex: 1 }}>
-                  <Link to={`/products/${item.productId}`} style={{ fontWeight: 600, color: '#1e293b', fontSize: 15 }}>
+
+                <div className="cart-item-info min-w-0 flex-1">
+                  <Link to={`/products/${item.productId}`} className="line-clamp-2 text-sm font-bold leading-5 text-shop-text hover:text-shop-red">
                     {item.productName}
                   </Link>
-                  <p style={{ color: '#2563eb', fontWeight: 600, marginTop: 4 }}>
-                    {item.productPrice.toLocaleString('vi-VN')}₫
-                  </p>
+                  <p className="mt-2 text-sm font-bold text-shop-red">{item.productPrice.toLocaleString('vi-VN')}đ</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
-                  <button onClick={() => handleUpdate(item.cartItemId, item.quantity - 1)}
-                    style={{ width: 32, height: 32, border: 'none', background: '#f1f5f9', cursor: 'pointer' }}>-</button>
-                  <span style={{ width: 40, textAlign: 'center', fontSize: 14, fontWeight: 600 }}>{item.quantity}</span>
-                  <button onClick={() => handleUpdate(item.cartItemId, item.quantity + 1)}
-                    style={{ width: 32, height: 32, border: 'none', background: '#f1f5f9', cursor: 'pointer' }}>+</button>
-                </div>
-                <span style={{ fontWeight: 700, color: '#1e293b', minWidth: 100, textAlign: 'right' }}>
-                  {item.subtotal.toLocaleString('vi-VN')}₫
+
+                <QuantityStepper
+                  value={item.quantity}
+                  onMinus={() => handleUpdate(item.cartItemId, item.quantity - 1)}
+                  onPlus={() => handleUpdate(item.cartItemId, item.quantity + 1)}
+                />
+
+                <span className="cart-item-subtotal min-w-[110px] text-right text-sm font-bold text-shop-text">
+                  {item.subtotal.toLocaleString('vi-VN')}đ
                 </span>
-                <button onClick={() => handleRemove(item.cartItemId)}
-                  style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: 4, fontSize: 16 }}>
-                  <i className="fa-solid fa-trash" />
-                </button>
+
+                <Button variant="icon" onClick={() => handleRemove(item.cartItemId)} aria-label="Xóa sản phẩm">
+                  <Trash2 className="h-4 w-4 text-shop-error" />
+                </Button>
               </div>
-            </div>
+            </article>
           ))}
         </div>
 
-        {/* Summary */}
-        <div className="card" style={{ position: 'sticky', top: 80 }}>
-          <div className="card-body">
-            <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Tóm tắt đơn hàng</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-              {cart.items.map(item => (
-                <div key={item.cartItemId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: '#6b7280' }}>{item.productName} × {item.quantity}</span>
-                  <span>{item.subtotal.toLocaleString('vi-VN')}₫</span>
-                </div>
-              ))}
-            </div>
-            <hr className="divider" />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 18, marginBottom: 20 }}>
-              <span>Tổng cộng</span>
-              <span style={{ color: '#2563eb' }}>{cart.totalPrice.toLocaleString('vi-VN')}₫</span>
-            </div>
-            <button className="btn btn-primary btn-full btn-lg" onClick={() => navigate('/checkout')} disabled={loading}>
-              <i className="fa-solid fa-credit-card" /> Tiến hành thanh toán
-            </button>
-            <Link to="/products" style={{ display: 'block', textAlign: 'center', marginTop: 12, color: '#6b7280', fontSize: 13 }}>
-              ← Tiếp tục mua sắm
-            </Link>
+        <aside className="cart-summary sticky top-24 rounded-2xl border border-shop-border bg-shop-surface p-5 shadow-sm">
+          <h2 className="text-base font-bold text-shop-text">Tóm tắt đơn hàng</h2>
+          <div className="mt-5 space-y-3">
+            {cart.items.map((item) => (
+              <div className="cart-summary-line flex justify-between gap-4 text-sm" key={item.cartItemId}>
+                <span className="line-clamp-2 font-medium text-shop-muted">
+                  {item.productName} x {item.quantity}
+                </span>
+                <span className="shrink-0 font-bold text-shop-text">{item.subtotal.toLocaleString('vi-VN')}đ</span>
+              </div>
+            ))}
           </div>
-        </div>
+
+          <hr className="my-5 border-shop-border" />
+
+          <div className="cart-summary-line flex justify-between gap-4 text-lg font-bold">
+            <span>Tổng cộng</span>
+            <span className="text-shop-red">{cart.totalPrice.toLocaleString('vi-VN')}đ</span>
+          </div>
+
+          <Button className="mt-6 w-full" onClick={() => navigate('/checkout')} disabled={loading} size="lg">
+            <CreditCard className="h-4 w-4" />
+            Tiến hành thanh toán
+          </Button>
+          <Button to="/products" variant="ghost" className="mt-3 w-full">
+            Tiếp tục mua sắm
+          </Button>
+        </aside>
       </div>
+    </div>
+  )
+}
+
+function QuantityStepper({ value, onMinus, onPlus }) {
+  return (
+    <div className="flex h-10 items-center overflow-hidden rounded-xl border border-shop-border bg-shop-surface">
+      <button type="button" onClick={onMinus} className="flex h-10 w-10 items-center justify-center text-shop-muted transition hover:bg-shop-softBlue hover:text-shop-red">
+        <Minus className="h-4 w-4" />
+      </button>
+      <span className="w-11 text-center text-sm font-bold text-shop-text">{value}</span>
+      <button type="button" onClick={onPlus} className="flex h-10 w-10 items-center justify-center text-shop-muted transition hover:bg-shop-softBlue hover:text-shop-red">
+        <Plus className="h-4 w-4" />
+      </button>
     </div>
   )
 }

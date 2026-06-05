@@ -24,8 +24,25 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("SELECT p FROM Product p WHERE (p.deleted = false OR p.deleted IS NULL) ORDER BY p.sold DESC")
     List<Product> findTopSellingProducts(Pageable pageable);
 
+    @Query("""
+            SELECT p FROM Product p
+            LEFT JOIN p.category c
+            WHERE (p.deleted = false OR p.deleted IS NULL)
+              AND (
+                LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(COALESCE(p.factory, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(COALESCE(p.shortDesc, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              )
+            ORDER BY p.sold DESC, p.id DESC
+            """)
+    List<Product> searchForChat(String keyword, Pageable pageable);
+
     @Query("SELECT COUNT(p) FROM Product p WHERE (p.deleted = false OR p.deleted IS NULL) AND p.quantity <= 5")
     long countLowStockProducts();
+
+    @Query("SELECT p FROM Product p WHERE (p.deleted = false OR p.deleted IS NULL) AND p.quantity <= :threshold ORDER BY p.quantity ASC")
+    List<Product> findLowStockProducts(long threshold, Pageable pageable);
 
     // Related products: cùng category, loại trừ sản phẩm hiện tại, sort theo sold
     @Query("SELECT p FROM Product p WHERE (p.deleted = false OR p.deleted IS NULL) AND p.category.id = :categoryId AND p.id <> :excludeId ORDER BY p.sold DESC")

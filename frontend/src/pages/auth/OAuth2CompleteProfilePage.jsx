@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
+import { validateFullName, validatePhone, validateAddress, buildErrors } from '../../utils/validators'
 
 export default function OAuth2CompleteProfilePage() {
   const navigate = useNavigate()
@@ -20,13 +21,11 @@ export default function OAuth2CompleteProfilePage() {
     if (!token) setTokenMissing(true)
   }, [token])
 
-  const validate = () => {
-    const e = {}
-    if (!form.fullName.trim() || form.fullName.trim().length < 3) e.fullName = 'Họ tên ít nhất 3 ký tự'
-    if (!form.phone.trim()) e.phone = 'Số điện thoại không được để trống'
-    if (!form.address.trim()) e.address = 'Địa chỉ không được để trống'
-    return e
-  }
+  const validate = () => buildErrors({
+    fullName: validateFullName(form.fullName),
+    phone: validatePhone(form.phone),
+    address: validateAddress(form.address),
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -70,7 +69,7 @@ export default function OAuth2CompleteProfilePage() {
       <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <div className="card" style={{ width: '100%', maxWidth: 420 }}>
           <div className="card-body" style={{ textAlign: 'center' }}>
-            <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: 34, color: '#dc2626', marginBottom: 12 }} />
+            <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: 34, color: '#DC2626', marginBottom: 12 }} />
             <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Thiếu phiên Google</h1>
             <p className="text-muted text-sm" style={{ marginBottom: 20 }}>
               Vui lòng đăng nhập lại bằng Google để hoàn tất hồ sơ.
@@ -88,7 +87,7 @@ export default function OAuth2CompleteProfilePage() {
         <div className="card">
           <div className="card-body">
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <i className="fa-brands fa-google" style={{ fontSize: 30, color: '#ea4335', marginBottom: 10 }} />
+              <i className="fa-brands fa-google" style={{ fontSize: 30, color: '#D70018', marginBottom: 10 }} />
               <h1 style={{ fontSize: 22, fontWeight: 700 }}>Hoàn tất thông tin</h1>
               <p className="text-muted text-sm mt-1" style={{ margin: 0 }}>
                 Bổ sung thông tin giao hàng trước khi đăng nhập SmartShop.
@@ -105,7 +104,7 @@ export default function OAuth2CompleteProfilePage() {
             </form>
 
             <p className="text-sm text-muted mt-4" style={{ textAlign: 'center' }}>
-              <Link to="/login" style={{ color: '#6b7280' }}>Hủy và quay lại đăng nhập</Link>
+              <Link to="/login" style={{ color: '#6B7280' }}>Hủy và quay lại đăng nhập</Link>
             </p>
           </div>
         </div>

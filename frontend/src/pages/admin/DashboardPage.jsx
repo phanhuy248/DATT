@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700 }}>Dashboard</h1>
         <button className="btn btn-secondary btn-sm" onClick={load} title="Làm mới">
           <i className="fa-solid fa-rotate-right" /> Làm mới
@@ -66,7 +66,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="admin-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* Order Status */}
         <div className="card">
           <div className="card-body">
@@ -123,8 +123,8 @@ export default function DashboardPage() {
               <h3 style={{ fontWeight: 700 }}>Đơn hàng gần đây</h3>
               <Link to="/admin/orders" style={{ fontSize: 12, color: '#2563eb' }}>Xem tất cả</Link>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
+              <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                     {['Mã', 'Người nhận', 'Tổng tiền', 'Phương thức', 'Trạng thái', 'Ngày đặt'].map(h => (
@@ -137,14 +137,14 @@ export default function DashboardPage() {
                     ? <tr><td colSpan={6} style={{ padding: 30, textAlign: 'center', color: '#9ca3af' }}>Chưa có đơn hàng nào</td></tr>
                     : (data?.recentOrders || []).map(o => (
                       <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '10px 12px', fontWeight: 600 }}>#{o.id}</td>
-                        <td style={{ padding: '10px 12px' }}>{o.receiverName}</td>
-                        <td style={{ padding: '10px 12px', color: '#2563eb', fontWeight: 600 }}>{o.totalPrice?.toLocaleString('vi-VN')}₫</td>
-                        <td style={{ padding: '10px 12px' }}>{o.paymentMethod || 'COD'}</td>
-                        <td style={{ padding: '10px 12px' }}>
+                        <td data-label="Mã" style={{ padding: '10px 12px', fontWeight: 600 }}>#{o.id}</td>
+                        <td data-label="Người nhận" style={{ padding: '10px 12px' }}>{o.receiverName}</td>
+                        <td data-label="Tổng tiền" style={{ padding: '10px 12px', color: '#2563eb', fontWeight: 600 }}>{o.totalPrice?.toLocaleString('vi-VN')}₫</td>
+                        <td data-label="Phương thức" style={{ padding: '10px 12px' }}>{o.paymentMethod || 'COD'}</td>
+                        <td data-label="Trạng thái" style={{ padding: '10px 12px' }}>
                           <span className={`badge ${STATUS_BADGE[o.status] || 'badge-secondary'}`}>{STATUS_LABEL[o.status] || o.status}</span>
                         </td>
-                        <td style={{ padding: '10px 12px', color: '#6b7280' }}>
+                        <td data-label="Ngày đặt" style={{ padding: '10px 12px', color: '#6b7280' }}>
                           {o.createdDate ? new Date(o.createdDate).toLocaleDateString('vi-VN') : ''}
                         </td>
                       </tr>

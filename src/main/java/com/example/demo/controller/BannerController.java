@@ -4,6 +4,7 @@ import com.example.demo.domain.Banner;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.BannerRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -32,13 +33,13 @@ public class BannerController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Banner>> create(@RequestBody Banner banner) {
+    public ResponseEntity<ApiResponse<Banner>> create(@Valid @RequestBody Banner banner) {
         return ResponseEntity.status(201).body(ApiResponse.ok("Tạo banner thành công", bannerRepository.save(banner)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Banner>> update(@PathVariable long id, @RequestBody Banner req) {
+    public ResponseEntity<ApiResponse<Banner>> update(@PathVariable long id, @Valid @RequestBody Banner req) {
         Banner banner = bannerRepository.findById(id).filter(b -> !b.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy banner"));
         banner.setTitle(req.getTitle());
