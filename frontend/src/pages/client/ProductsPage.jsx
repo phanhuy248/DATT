@@ -16,15 +16,6 @@ const SORT_OPTIONS = [
 
 const BRAND_OPTIONS = ['Apple', 'Samsung', 'ASUS', 'Sony', 'Lenovo', 'HP', 'Dell', 'Acer', 'MSI', 'Realme', 'Vivo', 'Xiaomi', 'Oppo', 'Huawei']
 
-const TARGET_OPTIONS = [
-  { value: 'gaming', label: 'Gaming' },
-  { value: 'lap trinh java', label: 'Lập trình Java' },
-  { value: 'lap trinh', label: 'Lập trình' },
-  { value: 'sinh vien', label: 'Sinh viên' },
-  { value: 'chup anh', label: 'Chụp ảnh đẹp' },
-  { value: 'pin trau', label: 'Pin trâu' },
-  { value: 'van phong', label: 'Văn phòng' },
-]
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -38,7 +29,6 @@ export default function ProductsPage() {
   const minPrice = searchParams.get('minPrice') || ''
   const maxPrice = searchParams.get('maxPrice') || ''
   const brand = searchParams.get('brand') || ''
-  const target = searchParams.get('target') || ''
   const sortBy = searchParams.get('sortBy') || 'newest'
   const page = parseInt(searchParams.get('page') || '0', 10)
   const aiTags = (searchParams.get('aiTags') || '').split('|').filter(Boolean)
@@ -48,15 +38,15 @@ export default function ProductsPage() {
       ? categories.find((category) => category.name.toLowerCase() === categoryName.toLowerCase())?.id?.toString() || ''
       : '')
 
-  const [filterInput, setFilterInput] = useState({ keyword, minPrice, maxPrice, brand, target })
+  const [filterInput, setFilterInput] = useState({ keyword, minPrice, maxPrice })
 
   useEffect(() => {
     getCategories().then(setCategories)
   }, [])
 
   useEffect(() => {
-    setFilterInput({ keyword, minPrice, maxPrice, brand, target })
-  }, [keyword, minPrice, maxPrice, brand, target])
+    setFilterInput({ keyword, minPrice, maxPrice })
+  }, [keyword, minPrice, maxPrice])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -68,13 +58,12 @@ export default function ProductsPage() {
       if (minPrice) params.minPrice = minPrice
       if (maxPrice) params.maxPrice = maxPrice
       if (brand) params.brand = brand
-      if (target) params.target = target
       const result = await getProducts(params)
       setData(result)
     } finally {
       setLoading(false)
     }
-  }, [keyword, selectedCategoryId, categoryName, minPrice, maxPrice, brand, target, sortBy, page])
+  }, [keyword, selectedCategoryId, categoryName, minPrice, maxPrice, brand, sortBy, page])
 
   useEffect(() => {
     fetchProducts()
@@ -102,17 +91,13 @@ export default function ProductsPage() {
     else delete next.minPrice
     if (filterInput.maxPrice) next.maxPrice = filterInput.maxPrice
     else delete next.maxPrice
-    if (filterInput.brand) next.brand = filterInput.brand
-    else delete next.brand
-    if (filterInput.target) next.target = filterInput.target
-    else delete next.target
     delete next.ram
     next.page = '0'
     setSearchParams(next)
   }
 
   const resetFilters = () => {
-    setFilterInput({ keyword: '', minPrice: '', maxPrice: '', brand: '', target: '' })
+    setFilterInput({ keyword: '', minPrice: '', maxPrice: '' })
     setSearchParams({})
   }
 
@@ -152,28 +137,13 @@ export default function ProductsPage() {
               <Field label="Thương hiệu">
                 <select
                   className="form-control"
-                  value={filterInput.brand}
-                  onChange={(event) => setFilterInput({ ...filterInput, brand: event.target.value })}
+                  value={brand}
+                  onChange={(event) => setParam('brand', event.target.value)}
                 >
                   <option value="">Tất cả thương hiệu</option>
                   {BRAND_OPTIONS.map((option) => (
                     <option key={option} value={option}>
                       {option}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Nhu cầu">
-                <select
-                  className="form-control"
-                  value={filterInput.target}
-                  onChange={(event) => setFilterInput({ ...filterInput, target: event.target.value })}
-                >
-                  <option value="">Tất cả nhu cầu</option>
-                  {TARGET_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
                     </option>
                   ))}
                 </select>

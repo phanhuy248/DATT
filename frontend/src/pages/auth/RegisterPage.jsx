@@ -83,20 +83,24 @@ export default function RegisterPage() {
     }
   }
 
-  const field = (key, label, type = 'text', placeholder = '') => (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      <input
-        type={type}
-        className="form-control"
-        placeholder={placeholder}
-        value={form[key]}
-        onChange={e => setForm({ ...form, [key]: e.target.value })}
-        disabled={step === 'otp' || loading}
-      />
-      {errors[key] && <p className="form-error">{errors[key]}</p>}
-    </div>
-  )
+  const field = (key, label, type = 'text', placeholder = '') => {
+    const fieldId = `register-${key}`
+    return (
+      <div className="form-group">
+        <label htmlFor={fieldId} className="form-label">{label}</label>
+        <input
+          id={fieldId}
+          type={type}
+          className="form-control"
+          placeholder={placeholder}
+          value={form[key]}
+          onChange={e => setForm({ ...form, [key]: e.target.value })}
+          disabled={step === 'otp' || loading}
+        />
+        {errors[key] && <p className="form-error">{errors[key]}</p>}
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
@@ -132,8 +136,9 @@ export default function RegisterPage() {
             ) : (
               <form onSubmit={handleVerifyOtp}>
                 <div className="form-group">
-                  <label className="form-label">Mã OTP</label>
+                  <label htmlFor="register-otp" className="form-label">Mã OTP</label>
                   <input
+                    id="register-otp"
                     className="form-control"
                     inputMode="numeric"
                     maxLength={6}

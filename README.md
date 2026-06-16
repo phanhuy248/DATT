@@ -6,7 +6,7 @@ SmartShop là website bán thiết bị công nghệ theo kiến trúc **React S
 
 ```text
 frontend/                         React + Vite SPA
-src/main/java/com/example/demo/
+src/main/java/com/smartshop/demo/
   config/                         Cấu hình security, CORS, Redis, seed data
   controller/                     REST controllers, expose /api/**
   domain/                         JPA entities và enum nghiệp vụ
@@ -46,28 +46,28 @@ docker compose up --build
 
 Backend:
 
-```bash
-./mvnw spring-boot:run
+```powershell
+.\mvnw.cmd spring-boot:run
 ```
 
 Frontend:
 
-```bash
+```powershell
 cd frontend
-npm install
-npm run dev
+npm.cmd install
+npm.cmd run dev
 ```
 
 ## Kiểm tra
 
-```bash
-./mvnw test
+```powershell
+.\mvnw.cmd test
 cd frontend
-npm run build
+npm.cmd run build
 ```
 
 ## Ghi chú thực tế
 
 - Thanh toán COD hoạt động theo luồng đơn hàng. Chuyển khoản/MoMo đang ở mức mô phỏng cơ bản, chưa có callback từ cổng thanh toán thật.
-- `spring.jpa.hibernate.ddl-auto=update` phù hợp demo; môi trường production nên chuyển sang Flyway hoặc Liquibase.
+- Database schema đang dùng Flyway và `spring.jpa.hibernate.ddl-auto=validate`, nên cần chạy migration thay vì để Hibernate tự sửa bảng.
 - Các biến môi trường mẫu nằm trong `.env.example`.

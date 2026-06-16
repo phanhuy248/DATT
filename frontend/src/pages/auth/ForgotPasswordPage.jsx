@@ -116,7 +116,7 @@ export default function ForgotPasswordPage() {
                     width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 12, fontWeight: 700,
                     background: step >= s ? '#D70018' : '#E5E7EB',
-                    color: step >= s ? '#fff' : '#6B7280',
+                    color: step >= s ? '#fff' : '#4B5563',
                   }}>{s}</div>
                   {i < 2 && <div style={{ flex: 1, height: 2, background: step > s ? '#D70018' : '#E5E7EB', maxWidth: 40 }} />}
                 </React.Fragment>
@@ -127,8 +127,8 @@ export default function ForgotPasswordPage() {
             {step === STEP_EMAIL && (
               <form onSubmit={handleSendOtp}>
                 <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input type="email" className="form-control" placeholder="your@email.com"
+                  <label htmlFor="forgot-email" className="form-label">Email</label>
+                  <input id="forgot-email" type="email" className="form-control" placeholder="your@email.com"
                     value={email} onChange={e => setEmail(e.target.value)} autoFocus />
                   {errors.email && <p className="form-error">{errors.email}</p>}
                 </div>
@@ -145,8 +145,8 @@ export default function ForgotPasswordPage() {
                   Mã OTP đã gửi đến <strong>{email}</strong>
                 </p>
                 <div className="form-group">
-                  <label className="form-label">Mã OTP (6 chữ số)</label>
-                  <input type="text" className="form-control" placeholder="123456" maxLength={6}
+                  <label htmlFor="forgot-otp" className="form-label">Mã OTP (6 chữ số)</label>
+                  <input id="forgot-otp" type="text" className="form-control" placeholder="123456" maxLength={6}
                     value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} autoFocus
                     style={{ fontSize: 20, letterSpacing: 8, textAlign: 'center' }} />
                   {errors.otp && <p className="form-error">{errors.otp}</p>}
@@ -159,9 +159,9 @@ export default function ForgotPasswordPage() {
                     style={{ background: 'none', color: '#D70018', fontWeight: 600, padding: '4px 0', fontSize: 13 }}>
                     Gửi lại mã OTP
                   </button>
-                  <span style={{ margin: '0 8px', color: '#6B7280' }}>|</span>
+                  <span style={{ margin: '0 8px', color: '#4B5563' }}>|</span>
                   <button type="button" className="btn" onClick={() => setStep(STEP_EMAIL)}
-                    style={{ background: 'none', color: '#6B7280', padding: '4px 0', fontSize: 13 }}>
+                    style={{ background: 'none', color: '#4B5563', padding: '4px 0', fontSize: 13 }}>
                     Đổi email
                   </button>
                 </div>
@@ -172,14 +172,14 @@ export default function ForgotPasswordPage() {
             {step === STEP_NEW_PASSWORD && (
               <form onSubmit={handleResetPassword}>
                 <div className="form-group">
-                  <label className="form-label">Mật khẩu mới</label>
-                  <input type="password" className="form-control" placeholder="Ít nhất 6 ký tự"
+                  <label htmlFor="forgot-new-password" className="form-label">Mật khẩu mới</label>
+                  <input id="forgot-new-password" type="password" className="form-control" placeholder="Ít nhất 6 ký tự"
                     value={newPassword} onChange={e => setNewPassword(e.target.value)} autoFocus />
                   {errors.newPassword && <p className="form-error">{errors.newPassword}</p>}
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Xác nhận mật khẩu</label>
-                  <input type="password" className="form-control" placeholder="Nhập lại mật khẩu"
+                  <label htmlFor="forgot-confirm-password" className="form-label">Xác nhận mật khẩu</label>
+                  <input id="forgot-confirm-password" type="password" className="form-control" placeholder="Nhập lại mật khẩu"
                     value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                   {errors.confirmPassword && <p className="form-error">{errors.confirmPassword}</p>}
                 </div>
@@ -190,7 +190,7 @@ export default function ForgotPasswordPage() {
             )}
 
             <p className="text-sm text-muted mt-4" style={{ textAlign: 'center' }}>
-              <Link to="/login" style={{ color: '#6B7280' }}>
+              <Link to="/login" style={{ color: '#4B5563' }}>
                 <i className="fa-solid fa-arrow-left" style={{ marginRight: 4 }} />
                 Quay lại đăng nhập
               </Link>

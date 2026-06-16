@@ -5,9 +5,15 @@
   "type": "module",
   "scripts": {
     "crawl": "node crawl-products.mjs",
-    "crawl:sample": "node crawl-products.mjs --per-category=2 --limit=24",
+    "crawl:sample": "node crawl-products.mjs --per-category=3 --limit=15",
+    "crawl:full": "node crawl-products.mjs --per-category=20 --limit=80",
+    "crawl:cellphones": "node crawl-products.mjs --site=cellphones --per-category=20",
+    "seed": "node generate-seed.mjs",
+    "seed:preview": "node generate-seed.mjs --output=/dev/stdout",
     "fake": "node generate-fake-products.mjs",
-    "fake:80": "node generate-fake-products.mjs --per-category=80"
+    "fake:80": "node generate-fake-products.mjs --per-category=80",
+    "download-images": "node download-images.mjs",
+    "download-images:local": "node download-images.mjs --dest=../uploads/products --base-url=/uploads/products"
   },
   "dependencies": {
     "playwright": "^1.52.0"

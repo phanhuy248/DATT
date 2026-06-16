@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Camera, Receipt, Save, User } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { updateProfile, uploadAvatar } from '../../api/users'
@@ -11,6 +11,7 @@ import { validateFullName, validatePhone, validateAddress, buildErrors } from '.
 
 export default function AccountPage() {
   const { user, updateUser } = useAuth()
+  const navigate = useNavigate()
   const [form, setForm] = useState({ fullName: user?.fullName || '', address: user?.address || '', phone: user?.phone || '' })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -32,6 +33,7 @@ export default function AccountPage() {
       const updated = await updateProfile(form)
       updateUser(updated)
       toast.success('Cập nhật thành công')
+      navigate('/')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Cập nhật thất bại')
     } finally {

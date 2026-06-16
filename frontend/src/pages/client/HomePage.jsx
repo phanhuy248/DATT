@@ -93,7 +93,7 @@ export default function HomePage() {
                 <Button to="/products" className="mt-5">Xem trang sản phẩm</Button>
               </div>
             )}
-            {!loading && !error && <FlashSaleSection products={featuredProducts} />}
+            <FlashSaleSection fallbackProducts={featuredProducts} />
             <CategorySection />
             {!loading && !error && <BestSellerSection products={bestSellerProducts} />}
           </main>

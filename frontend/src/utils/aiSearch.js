@@ -105,7 +105,7 @@ function parsePrice(text) {
 
 function parseCategory(text) {
   if (text.includes('may tinh') && !text.includes('may tinh bang')) {
-    if (includesAny(text, ['gaming', 'game', 'lap trinh', 'java', 'ram', 'van phong'])) return CATEGORY_RULES[1]
+    return CATEGORY_RULES[1]
   }
 
   return CATEGORY_RULES.find((rule) => includesAny(text, rule.terms)) || null

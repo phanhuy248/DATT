@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, CheckCircle2, CreditCard, Package, Truck, Wallet } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { validateCoupon } from '../../api/coupons'
 import { placeOrder } from '../../api/orders'
-import { createVnpayPayment } from '../../api/payments'
 import Button from '../../components/ui/Button'
 import SectionHeader from '../../components/ui/SectionHeader'
 import { useAuth } from '../../context/AuthContext'
@@ -22,6 +21,7 @@ export default function CheckoutPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const submittingRef = useRef(false)
   const [form, setForm] = useState({
     receiverName: user?.fullName || '',
     receiverAddress: user?.address || '',
@@ -42,6 +42,7 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (event) => {
     event?.preventDefault()
+    if (submittingRef.current) return
     const nextErrors = validate()
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors)
@@ -52,28 +53,29 @@ export default function CheckoutPage() {
       return
     }
 
+    submittingRef.current = true
     setLoading(true)
     try {
       const items = cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity }))
       const order = await placeOrder({ ...form, couponCode: coupon?.code || couponCode, items })
       if (form.paymentMethod === 'VNPAY') {
-        const payment = await createVnpayPayment(order.id)
-        await clearCart()
-        window.location.href = payment.paymentUrl
+        // Giỏ hàng chỉ xóa khi thanh toán xác nhận thành công — KHÔNG xóa ở đây
+        navigate(`/orders/${order.id}/payment`)
         return
       }
       if (form.paymentMethod === 'BANK_TRANSFER') {
-        await clearCart()
-        toast.success('Đã tạo đơn hàng. Vui lòng quét QR để chuyển khoản.')
-        navigate(`/payment/bank-transfer/${order.id}`)
+        // Giỏ hàng chỉ xóa khi admin duyệt / SePay webhook xác nhận
+        navigate(`/orders/${order.id}/payment`)
         return
       }
+      // COD: giỏ đã được xóa ở backend, xóa thêm phía frontend cho đồng bộ UI
       await clearCart()
       toast.success('Đặt hàng thành công')
       navigate(`/order-success/${order.id}`)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Đặt hàng thất bại')
     } finally {
+      submittingRef.current = false
       setLoading(false)
     }
   }

@@ -52,14 +52,14 @@ export default function AdminLoginPage() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input type="email" className="form-control" placeholder="admin@email.com"
+                <label htmlFor="admin-email" className="form-label">Email</label>
+                <input id="admin-email" type="email" className="form-control" placeholder="admin@gmail.com"
                   value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                 {errors.email && <p className="form-error">{errors.email}</p>}
               </div>
               <div className="form-group">
-                <label className="form-label">Mật khẩu</label>
-                <input type="password" className="form-control" placeholder="••••••"
+                <label htmlFor="admin-password" className="form-label">Mật khẩu</label>
+                <input id="admin-password" type="password" className="form-control" placeholder="••••••"
                   value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
                 {errors.password && <p className="form-error">{errors.password}</p>}
               </div>
@@ -69,7 +69,7 @@ export default function AdminLoginPage() {
               </button>
             </form>
             <p className="text-sm text-muted mt-4" style={{ textAlign: 'center' }}>
-              <Link to="/login" style={{ color: '#6B7280' }}>
+              <Link to="/login" style={{ color: '#4B5563' }}>
                 <i className="fa-solid fa-arrow-left" style={{ marginRight: 4 }} />
                 Quay lại trang đăng nhập
               </Link>

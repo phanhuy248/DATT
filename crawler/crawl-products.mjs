@@ -4,16 +4,51 @@ import path from 'node:path'
 import { SITES } from './config/sites.js'
 
 const args = parseArgs(process.argv.slice(2))
-const OUTPUT_FILE = args.output || 'output/products.json'
-const PER_CATEGORY = Number(args['per-category'] || 4)
-const TOTAL_LIMIT = Number(args.limit || 48)
+const OUTPUT_FILE = args.output || 'output/products-clean.json'
+const PER_CATEGORY = Number(args['per-category'] || 20)
+const TOTAL_LIMIT = Number(args.limit || 80)
 const SITE_FILTER = args.site ? new Set(args.site.split(',').map(s => s.trim())) : null
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 SmartShopCrawler/1.0'
 
-console.log(`Starting SmartShop crawler: per-category=${PER_CATEGORY}, limit=${TOTAL_LIMIT}`)
+// Price limits per category (VND) — reject products outside range
+const PRICE_LIMITS = {
+  'Laptop':     { min: 2_000_000,  max: 200_000_000 },
+  'Điện thoại': { min:   500_000,  max:  80_000_000 },
+  'Phụ kiện':   { min:    50_000,  max:  50_000_000 },
+}
+const DEFAULT_PRICE_LIMITS = { min: 50_000, max: 500_000_000 }
+
+// Warrant/policy boilerplate patterns — reject as description
+const WARRANTY_PATTERNS = [
+  /nguyên hộp/i,
+  /đầy đủ phụ kiện/i,
+  /bảo hành pin/i,
+  /phụ kiện từ nhà sản xuất/i,
+  /bảo hành \d+ tháng/i,
+  /thu cũ đổi mới/i,
+  /trả góp 0%/i,
+  /chính hãng vn\/a/i,
+  /miễn phí vận chuyển/i,
+]
+
+// Advertising suffixes to strip from product names
+const NAME_SUFFIX_RE = new RegExp(
+  '[-|,\\s]+(' +
+  'chính hãng|chinh hang|giá rẻ|gia re|giá tốt|gia tot|' +
+  'giảm ngay|giam ngay|giảm \\d|tặng \\d|tang \\d|' +
+  '1 đổi 1|1doi1|' +
+  'bh \\d+ tháng|bảo hành \\d+ tháng|bảo hành chính hãng|' +
+  'trả góp 0%|tra gop|góp 0%|gop 0%|' +
+  'thu cũ|đổi mới|doi moi|sale off|hot deal|new arrival|' +
+  'chính thức|ủy quyền|tặng quà' +
+  ').*$',
+  'gi',
+)
+
+console.log(`Starting SmartShop clean crawler: per-category=${PER_CATEGORY}, limit=${TOTAL_LIMIT}`)
 const browser = await chromium.launch({
   headless: !args.headful,
   timeout: 30000,
@@ -26,6 +61,7 @@ const context = await browser.newContext({
 })
 
 const products = []
+let skippedCount = 0
 
 try {
   for (const site of SITES.filter(site => !SITE_FILTER || SITE_FILTER.has(site.key))) {
@@ -47,12 +83,18 @@ try {
         const page = await context.newPage()
         try {
           const product = await crawlProduct(page, site, category, url)
-          if (product) products.push(product)
+          if (product) {
+            products.push(product)
+            console.log(`[ok] ${product.name} — ${formatPrice(product.price)}`)
+          } else {
+            skippedCount++
+          }
         } catch (error) {
           console.warn(`[skip] ${site.key} ${url}: ${error.message}`)
+          skippedCount++
         } finally {
           await page.close()
-          await sleep(700)
+          await sleep(1200 + Math.random() * 600) // 1.2–1.8s delay, respectful rate limit
         }
       }
     }
@@ -61,13 +103,23 @@ try {
   await browser.close()
 }
 
+console.log(`\nCrawl complete: ${products.length} kept, ${skippedCount} skipped`)
+console.log('Sample check (first 3):')
+products.slice(0, 3).forEach((p, i) => {
+  console.log(`  [${i + 1}] ${p.name}`)
+  console.log(`       Price : ${formatPrice(p.price)}`)
+  console.log(`       Image : ${p.image}`)
+})
+
 await fs.mkdir(path.dirname(OUTPUT_FILE), { recursive: true })
 await fs.writeFile(
   OUTPUT_FILE,
   JSON.stringify({ crawledAt: new Date().toISOString(), total: products.length, products }, null, 2),
   'utf8',
 )
-console.log(`Wrote ${products.length} products to ${OUTPUT_FILE}`)
+console.log(`\nWrote ${products.length} products → ${OUTPUT_FILE}`)
+
+// ─── LINK COLLECTION ────────────────────────────────────────────────────────
 
 async function collectProductLinks(page, site, category, limit) {
   console.log(`[list] ${site.key} ${category.category}: ${category.url}`)
@@ -132,6 +184,8 @@ async function collectProductLinks(page, site, category, limit) {
   return links
 }
 
+// ─── PRODUCT DETAIL CRAWL ────────────────────────────────────────────────────
+
 async function crawlProduct(page, site, category, url) {
   await goto(page, url)
   await autoScroll(page, 2)
@@ -149,14 +203,14 @@ async function crawlProduct(page, site, category, url) {
       '[class*="productName"]',
       '[class*="product-title"]',
       '[class*="productTitle"]',
-    ]) || meta('og:title') || jsonLd.name
+    ]) || meta('og:title') || jsonLd.name || ''
 
     const description = firstText([
       '[class*="product-description"]',
       '[class*="description"]',
       '[id*="description"]',
       '.short-description',
-    ]) || meta('description') || jsonLd.description
+    ]) || meta('description') || jsonLd.description || ''
 
     const priceText = String(
       offer.price ||
@@ -172,9 +226,12 @@ async function crawlProduct(page, site, category, url) {
       ''
     )
 
+    // og:image is the canonical, full-resolution product image — put it first
+    const ogImage = meta('og:image')
+
     const images = unique([
-      ...jsonImages,
-      meta('og:image'),
+      ogImage,               // priority 1: social card = full-size canonical image
+      ...jsonImages,         // priority 2: JSON-LD structured data
       attr('img[itemprop="image"]', 'src'),
       attr('[class*="gallery"] img', 'src'),
       attr('[class*="product"] img', 'src'),
@@ -188,10 +245,11 @@ async function crawlProduct(page, site, category, url) {
     const availability = offer.availability || ''
 
     return {
-      name: normalize(name || ''),
-      description: normalize(description || ''),
-      priceText: normalize(priceText || ''),
-      image: images[0],
+      name: normalize(name),
+      description: normalize(description),
+      priceText: normalize(priceText),
+      ogImage: normalize(ogImage),
+      image: images[0] || '',
       images,
       specifications,
       brand: normalize(brand || ''),
@@ -324,34 +382,146 @@ async function crawlProduct(page, site, category, url) {
     }
   })
 
+  // ── Post-process: clean and validate ────────────────────────────────────────
+
+  const cleanedName = cleanName(extracted.name)
+  if (!cleanedName) return null
+
   const price = parsePrice(extracted.priceText)
-  if (!extracted.name || !price) return null
+  if (!price) return null
+  if (!isValidPriceForCategory(price, category.category)) {
+    console.warn(`[price-skip] ${cleanedName}: ${formatPrice(price)} outside range for ${category.category}`)
+    return null
+  }
+
+  // Fix CDN thumbnail URLs (e.g. CellphoneS /200x/ resize proxy)
+  const fixedImages = extracted.images
+    .map(fixCdnUrl)
+    .filter(isUsableImageUrl)
+    .filter((v, i, arr) => arr.indexOf(v) === i) // deduplicate after fixing
+
+  const primaryImage = fixedImages[0] || null
+  if (!primaryImage) return null  // reject: no usable image
+
+  // Reject warranty/boilerplate text as description; build fallback
+  const desc = isWarrantyText(extracted.description) ? '' : extracted.description
+  const shortDesc = desc || `${cleanedName} - ${site.supplier}`
 
   return {
     source: site.key,
     sourceSite: site.supplier,
     sourceUrl: url,
     externalId: externalIdFromUrl(url),
-    name: extracted.name,
+    name: cleanedName,
     price,
-    image: extracted.image,
-    images: extracted.images,
-    shortDesc: extracted.description || `${extracted.name} - ${site.supplier}`,
-    description: extracted.description,
-    specifications: extracted.specifications,
+    image: primaryImage,
+    images: fixedImages,
+    shortDesc,
+    description: desc,
+    specifications: cleanSpecs(extracted.specifications),
     stock: typeof extracted.stock === 'number' ? extracted.stock : 10,
     soldCount: 0,
     category: category.category,
     supplier: site.supplier,
-    brand: extracted.brand || inferBrand(extracted.name),
+    brand: extracted.brand || inferBrand(cleanedName),
+    factory: extracted.brand || inferBrand(cleanedName),
   }
 }
 
+// ─── CLEANING HELPERS ────────────────────────────────────────────────────────
+
+function cleanName(text) {
+  if (!text) return ''
+  return text
+    // Decode common HTML entities
+    .replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    // Strip emoji and special icons
+    .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
+    .replace(/[✔✓★☆♦♣♥◆⚡🔥]/g, '')
+    // Strip trailing ad/warranty suffixes
+    .replace(NAME_SUFFIX_RE, '')
+    // Strip leading/trailing punctuation used as separators
+    .replace(/^[-|,\s]+/, '').replace(/[-|,\s]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isWarrantyText(text) {
+  if (!text || text.length > 500) return false
+  // Short text that matches boilerplate patterns = warranty/policy text, not a real description
+  return WARRANTY_PATTERNS.some(re => re.test(text))
+}
+
+/** Normalize image URLs to directly-accessible full-resolution versions */
+function fixCdnUrl(url) {
+  if (!url || typeof url !== 'string') return ''
+  // Step 1 — imgproxy "plain" wrapper: extract the inner original URL first
+  // e.g. cdn2.cellphones.com.vn/insecure/rs:fill:358:358/q:90/plain/https://cellphones.com.vn/...
+  const proxyMatch = url.match(/\/insecure\/(?:[^/]+\/)+plain\/(.+)$/)
+  if (proxyMatch) {
+    try { url = decodeURIComponent(proxyMatch[1]) } catch { /* keep current url */ }
+  }
+  // Step 2 — CellphoneS CDN host (cdn2.cellphones.com.vn) requires a resize prefix;
+  // strip the CDN subdomain (and optional resize segment) → use origin cellphones.com.vn directly.
+  // Handles: cdn2.cellphones.com.vn/200x/media/... AND cdn2.cellphones.com.vn/media/... (already stripped)
+  url = url.replace(
+    /^(https?:)\/\/cdn\d*\.(cellphones\.com\.vn)\/(?:\d+x\d*\/)?/,
+    '$1//$2/',
+  )
+  // Step 3 — protocol-relative → https
+  if (url.startsWith('//')) url = 'https:' + url
+  return url
+}
+
+function isUsableImageUrl(url) {
+  if (!url || typeof url !== 'string') return false
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return false
+  const lower = url.toLowerCase()
+  // Reject obvious non-product images
+  if (/placeholder|no.?image|blank|sprite|loading|icon|logo\.(png|svg)/i.test(lower)) return false
+  // Reject youtube thumbnails (not product photos)
+  if (lower.includes('youtube.com') || lower.includes('ytimg.com')) return false
+  return true
+}
+
+function cleanSpecs(specs) {
+  if (!specs || typeof specs !== 'object') return {}
+  const cleaned = {}
+  for (const [key, value] of Object.entries(specs)) {
+    const k = key.trim()
+    const v = value.trim()
+    // Skip comparison table header rows
+    if (/^(tên sản phẩm|tên sp|so sánh|tiêu chí|model|phiên bản so sánh)/i.test(k)) continue
+    // Skip rows whose key looks like a product model name (starts with a brand)
+    if (/^(samsung|apple|iphone|xiaomi|oppo|vivo|realme|asus|acer|lenovo|dell|hp|msi|lg)\s+/i.test(k)) continue
+    // Skip rows whose value contains price/trade-in language
+    if (/\d{3}\.000\s*đ|\d+\.\d{3}\.\d{3}\s*đ|giá bán|thu cũ|lên đời|giá niêm yết/i.test(v)) continue
+    // Skip rows where the value looks like two of the same spec side-by-side (comparison artifact)
+    // Pattern: same unit/word appears 2+ times with a gap (e.g. "8.2mm 8.6mm" or "218g 232g")
+    if (/(\b\d+\.?\d*\s*mm\b.*\b\d+\.?\d*\s*mm\b|\b\d+\s*g\b.*\b\d+\s*g\b)/.test(v) && v.includes(' ')) {
+      // Only skip if it looks like a two-column comparison (two distinct numeric values)
+      const nums = v.match(/\d+\.?\d*/g) || []
+      if (nums.length >= 4) continue  // too many numbers = comparison table row
+    }
+    // Skip unreasonably long values (usually comparison paragraphs, not spec values)
+    if (v.length > 250) continue
+    cleaned[k] = v
+  }
+  return cleaned
+}
+
+function isValidPriceForCategory(price, categoryName) {
+  const limits = PRICE_LIMITS[categoryName] || DEFAULT_PRICE_LIMITS
+  return price >= limits.min && price <= limits.max
+}
+
+// ─── NAVIGATION & SCROLL ────────────────────────────────────────────────────
+
 async function goto(page, url) {
-  page.setDefaultTimeout(15000)
-  page.setDefaultNavigationTimeout(15000)
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 })
-  await page.waitForTimeout(1200)
+  page.setDefaultTimeout(20000)
+  page.setDefaultNavigationTimeout(20000)
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.waitForTimeout(1500)
 }
 
 async function autoScroll(page, rounds = 3) {
@@ -361,6 +531,8 @@ async function autoScroll(page, rounds = 3) {
   }
   await page.evaluate(() => window.scrollTo(0, 0))
 }
+
+// ─── URL & PRODUCT SIGNAL HELPERS ────────────────────────────────────────────
 
 function isLikelyProductUrl(site, href, categoryUrl) {
   if (href === categoryUrl) return false
@@ -375,6 +547,8 @@ function hasProductSignal(text) {
 function hasPriceSignal(text) {
   return /(\d[\d.,\s]{4,})\s*(d|đ|₫|vnd)/i.test(text) || /\d+%\s*off/i.test(text)
 }
+
+// ─── PRICE PARSING ───────────────────────────────────────────────────────────
 
 function parsePrice(value) {
   if (typeof value === 'number') return Math.round(value)
@@ -393,8 +567,18 @@ function parsePrice(value) {
   return prices.length ? prices[0] : null
 }
 
+function formatPrice(price) {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
+}
+
+// ─── BRAND & ID HELPERS ──────────────────────────────────────────────────────
+
 function inferBrand(name) {
-  const brands = ['Apple', 'Samsung', 'Dell', 'HP', 'Asus', 'Lenovo', 'Acer', 'MSI', 'LG', 'Xiaomi', 'OPPO', 'Vivo', 'Logitech', 'Razer', 'Sony', 'Anker', 'Baseus']
+  const brands = [
+    'Apple', 'Samsung', 'Dell', 'HP', 'Asus', 'Lenovo', 'Acer', 'MSI',
+    'LG', 'Xiaomi', 'OPPO', 'Vivo', 'Logitech', 'Razer', 'Sony', 'Anker',
+    'Baseus', 'Realme', 'OnePlus', 'Huawei', 'Nokia',
+  ]
   const lower = String(name || '').toLowerCase()
   return brands.find(brand => lower.includes(brand.toLowerCase())) || ''
 }
@@ -404,10 +588,12 @@ function externalIdFromUrl(url) {
   return parsed.pathname.split('/').filter(Boolean).pop()?.replace(/\.html$/, '') || url
 }
 
+// ─── MISC ────────────────────────────────────────────────────────────────────
+
 function stripVietnamese(value) {
   return String(value || '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[đĐ]/g, match => (match === 'đ' ? 'd' : 'D'))
     .toLowerCase()
 }

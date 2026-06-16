@@ -1,32 +1,45 @@
 import React, { useEffect, useState } from 'react'
+import { Image, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { createBanner, deleteBanner, getAdminBanners, updateBanner } from '../../api/banners'
 import { getImageUrl } from '../../utils/image'
+import {
+  ActiveBadge,
+  Button,
+  Card,
+  Checkbox,
+  ConfirmDialog,
+  DataTable,
+  Input,
+  Modal,
+  PageHeader,
+  Textarea,
+} from '../../components/admin/ui'
 
 const EMPTY = { title: '', subtitle: '', image: '', linkUrl: '/products', sortOrder: 0, active: true }
 
 export default function AdminBannersPage() {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [modal, setModal] = useState(null)
-  const [form, setForm] = useState(EMPTY)
+  const [items,    setItems]    = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+  const [modal,    setModal]    = useState(null)
+  const [form,     setForm]     = useState(EMPTY)
+  const [toDelete, setToDelete] = useState(null)
 
   const load = () => {
     setLoading(true)
     getAdminBanners()
       .then(setItems)
-      .catch(err => toast.error(err.response?.data?.message || 'Không thể tải banner'))
+      .catch((err) => toast.error(err.response?.data?.message || 'Không thể tải banner'))
       .finally(() => setLoading(false))
   }
-
   useEffect(() => { load() }, [])
 
   const openCreate = () => { setForm(EMPTY); setModal({ mode: 'create' }) }
-  const openEdit = (item) => { setForm({ ...EMPTY, ...item }); setModal({ mode: 'edit', data: item }) }
+  const openEdit   = (item) => { setForm({ ...EMPTY, ...item }); setModal({ mode: 'edit', data: item }) }
 
-  const save = async (event) => {
-    event.preventDefault()
+  const save = async (e) => {
+    e.preventDefault()
     if (!form.title.trim()) { toast.error('Vui lòng nhập tiêu đề banner'); return }
     setSaving(true)
     try {
@@ -43,124 +56,150 @@ export default function AdminBannersPage() {
     }
   }
 
-  const remove = async (item) => {
-    if (!confirm(`Xóa banner "${item.title}"?`)) return
+  const handleDelete = async () => {
+    if (!toDelete) return
     try {
-      await deleteBanner(item.id)
+      await deleteBanner(toDelete.id)
       toast.success('Đã xóa banner')
       load()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể xóa banner')
+    } finally {
+      setToDelete(null)
     }
   }
 
-  return (
-    <div>
-      <div className="admin-page-header flex-between" style={{ marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+  const f = (key) => (e) => setForm({ ...form, [key]: e.target.value })
+
+  const columns = [
+    {
+      key: 'image',
+      header: 'Ảnh',
+      headerClassName: 'w-32',
+      render: (row) => (
+        <div className="h-14 w-24 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+          {row.image
+            ? <img src={getImageUrl(row.image)} alt="" className="h-full w-full object-cover" />
+            : <div className="flex h-full w-full items-center justify-center text-gray-300"><Image size={20} /></div>}
+        </div>
+      ),
+    },
+    {
+      key: 'title',
+      header: 'Nội dung',
+      render: (row) => (
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Quản lý banner</h1>
-          <p className="text-muted text-sm">Điều khiển các banner hiển thị trên trang chủ.</p>
+          <p className="font-semibold text-gray-900">{row.title}</p>
+          {row.subtitle && <p className="mt-0.5 max-w-xs truncate text-xs text-gray-400">{row.subtitle}</p>}
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <i className="fa-solid fa-plus" /> Thêm banner
-        </button>
-      </div>
-
-      {loading ? <div className="spinner" /> : (
-        <div className="card">
-          <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
-            <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  {['Ảnh', 'Nội dung', 'Liên kết', 'Thứ tự', 'Trạng thái', 'Thao tác'].map(h => (
-                    <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Chưa có banner</td></tr>
-                ) : items.map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td data-label="Ảnh" style={{ padding: '10px 14px' }}>
-                      <div style={{ width: 120, height: 58, borderRadius: 6, overflow: 'hidden', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        {item.image
-                          ? <img src={getImageUrl(item.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}><i className="fa-solid fa-image" /></div>}
-                      </div>
-                    </td>
-                    <td data-label="Nội dung" style={{ padding: '10px 14px' }}>
-                      <div style={{ fontWeight: 700 }}>{item.title}</div>
-                      <div className="text-muted text-sm" style={{ maxWidth: 380 }}>{item.subtitle}</div>
-                    </td>
-                    <td data-label="Liên kết" style={{ padding: '10px 14px', color: '#2563eb' }}>{item.linkUrl || '-'}</td>
-                    <td data-label="Thứ tự" style={{ padding: '10px 14px' }}>{item.sortOrder}</td>
-                    <td data-label="Trạng thái" style={{ padding: '10px 14px' }}>
-                      <span className={`badge ${item.active ? 'badge-success' : 'badge-secondary'}`}>
-                        {item.active ? 'Hiển thị' : 'Ẩn'}
-                      </span>
-                    </td>
-                    <td data-label="Thao tác" style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}><i className="fa-solid fa-pen" /></button>
-                        <button className="btn btn-danger btn-sm" onClick={() => remove(item)}><i className="fa-solid fa-trash" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      ),
+    },
+    {
+      key: 'linkUrl',
+      header: 'Liên kết',
+      render: (row) => <span className="text-blue-600 text-sm">{row.linkUrl || '—'}</span>,
+    },
+    {
+      key: 'sortOrder',
+      header: 'Thứ tự',
+      headerClassName: 'w-20',
+      render: (row) => <span className="text-gray-500">{row.sortOrder}</span>,
+    },
+    {
+      key: 'active',
+      header: 'Trạng thái',
+      render: (row) => <ActiveBadge active={row.active} labelOn="Hiển thị" labelOff="Ẩn" />,
+    },
+    {
+      key: 'actions',
+      header: '',
+      headerClassName: 'w-24',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row) }} title="Chỉnh sửa">
+            <Pencil size={15} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); setToDelete(row) }}
+            className="text-red-500 hover:bg-red-50 hover:text-red-600"
+            title="Xóa"
+          >
+            <Trash2 size={15} />
+          </Button>
         </div>
-      )}
+      ),
+    },
+  ]
 
-      {modal && (
-        <div className="admin-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 680 }}>
-            <div className="card-body">
-              <div className="flex-between" style={{ marginBottom: 16 }}>
-                <h2 style={{ fontWeight: 700, fontSize: 18 }}>{modal.mode === 'create' ? 'Thêm banner' : 'Sửa banner'}</h2>
-                <button onClick={() => setModal(null)} style={{ border: 0, background: 'transparent', fontSize: 22, color: '#64748b' }}>×</button>
-              </div>
-              <form onSubmit={save}>
-                <div className="admin-modal-grid grid grid-2">
-                  <Field label="Tiêu đề" value={form.title} onChange={value => setForm({ ...form, title: value })} required />
-                  <Field label="Liên kết" value={form.linkUrl} onChange={value => setForm({ ...form, linkUrl: value })} />
-                  <Field label="Ảnh URL hoặc đường dẫn upload" value={form.image} onChange={value => setForm({ ...form, image: value })} />
-                  <Field label="Thứ tự" type="number" value={form.sortOrder} onChange={value => setForm({ ...form, sortOrder: value })} />
-                </div>
-                <Field label="Mô tả ngắn" textarea value={form.subtitle} onChange={value => setForm({ ...form, subtitle: value })} />
-                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-                  <input type="checkbox" checked={!!form.active} onChange={event => setForm({ ...form, active: event.target.checked })} />
-                  Hiển thị banner
-                </label>
-                {form.image && (
-                  <div style={{ marginBottom: 16, height: 120, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <img src={getImageUrl(form.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                )}
-                <div className="admin-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button>
-                  <button className="btn btn-primary" disabled={saving}>
-                    {saving ? <><i className="fa-solid fa-spinner fa-spin" /> Đang lưu...</> : 'Lưu banner'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Field({ label, value, onChange, type = 'text', textarea = false, required = false }) {
   return (
-    <div className="form-group">
-      <label className="form-label">{label}{required && ' *'}</label>
-      {textarea
-        ? <textarea className="form-control" rows={3} value={value || ''} onChange={event => onChange(event.target.value)} />
-        : <input className="form-control" type={type} value={value ?? ''} onChange={event => onChange(event.target.value)} />}
+    <div className="p-6 lg:p-8">
+      <PageHeader
+        title="Quản lý banner"
+        description="Điều khiển các banner hiển thị trên trang chủ."
+        breadcrumb={[{ label: 'Admin' }, { label: 'Banner' }]}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus size={16} />
+            Thêm banner
+          </Button>
+        }
+      />
+
+      <Card>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          getKey={(r) => r.id}
+          emptyMessage="Chưa có banner"
+          emptyDescription="Thêm banner để hiển thị trên trang chủ."
+          emptyIcon={<Image size={28} />}
+        />
+      </Card>
+
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal?.mode === 'create' ? 'Thêm banner' : 'Sửa banner'}
+        width="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModal(null)}>Hủy</Button>
+            <Button type="submit" form="banner-form" loading={saving}>Lưu banner</Button>
+          </>
+        }
+      >
+        <form id="banner-form" onSubmit={save} className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Tiêu đề" required autoFocus placeholder="Nhập tiêu đề..." value={form.title} onChange={f('title')} />
+            <Input label="Liên kết" placeholder="/products" value={form.linkUrl} onChange={f('linkUrl')} />
+          </div>
+          <Input label="URL ảnh" placeholder="https://... hoặc đường dẫn upload" value={form.image} onChange={f('image')} />
+          {form.image && (
+            <div className="h-28 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              <img src={getImageUrl(form.image)} alt="" className="h-full w-full object-cover" />
+            </div>
+          )}
+          <Textarea label="Mô tả ngắn" rows={2} placeholder="Mô tả banner..." value={form.subtitle} onChange={f('subtitle')} />
+          <Input label="Thứ tự hiển thị" type="number" min={0} placeholder="0" value={form.sortOrder} onChange={f('sortOrder')} />
+          <Checkbox
+            label="Hiển thị banner"
+            checked={!!form.active}
+            onChange={(v) => setForm({ ...form, active: v })}
+          />
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={handleDelete}
+        title="Xóa banner"
+        description={`Bạn có chắc muốn xóa banner "${toDelete?.title}"?`}
+        confirmLabel="Xóa"
+      />
     </div>
   )
 }

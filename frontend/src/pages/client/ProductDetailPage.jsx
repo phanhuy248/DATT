@@ -13,6 +13,32 @@ import { getImageUrl } from '../../utils/image'
 
 const formatPrice = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`
 
+const resolveOldPrice = (product) => {
+  const oldPrice = Number(product?.oldPrice || product?.originalPrice || 0)
+  const price = Number(product?.price || 0)
+  if (oldPrice > price) return oldPrice
+  if (product?.discountPercent && price > 0) return Math.round((price / (1 - Number(product.discountPercent) / 100)) / 1000) * 1000
+  return 0
+}
+
+const resolveSalePercent = (product, oldPrice) => {
+  const explicitPercent = Number(product?.discountPercent || 0)
+  if (explicitPercent > 0) return Math.min(90, Math.round(explicitPercent))
+
+  const price = Number(product?.price || 0)
+  if (oldPrice > price && price > 0) {
+    return Math.min(90, Math.max(1, Math.round(((oldPrice - price) / oldPrice) * 100)))
+  }
+  return 0
+}
+
+const resolveDefaultSalePercent = (product) => {
+  const DEFAULT_SALE_PERCENTS = [8, 10, 12, 15]
+  if (!product || Number(product.price || 0) <= 0 || product.quantity === 0) return 0
+  const index = Math.abs(Number(product.id || 0)) % DEFAULT_SALE_PERCENTS.length
+  return DEFAULT_SALE_PERCENTS[index]
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -46,6 +72,19 @@ export default function ProductDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const oldPrice = useMemo(() => resolveOldPrice(product), [product])
+  const discountPercent = useMemo(() => {
+    const pct = resolveSalePercent(product, oldPrice)
+    if (pct > 0) return pct
+    return resolveDefaultSalePercent(product)
+  }, [product, oldPrice])
+  const finalOldPrice = useMemo(() => {
+    if (oldPrice > 0) return oldPrice
+    if (discountPercent > 0 && product?.price) {
+      return Math.round((product.price / (1 - discountPercent / 100)) / 1000) * 1000
+    }
+    return 0
+  }, [oldPrice, discountPercent, product?.price])
   const highlights = useMemo(() => buildHighlights(product), [product])
   const specPreview = useMemo(() => buildSpecPreview(product), [product])
   const priceMessage = useMemo(() => buildPriceMessage(product, priceHistory), [product, priceHistory])
@@ -119,11 +158,16 @@ export default function ProductDetailPage() {
 
       <section className="grid gap-8 rounded-3xl border border-shop-border bg-shop-surface p-5 shadow-sm lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:p-6">
         <div>
-          <div className="product-main-image flex min-h-[380px] items-center justify-center rounded-3xl bg-shop-softBlue p-6">
+          <div className="product-main-image relative flex min-h-[380px] items-center justify-center rounded-3xl bg-shop-softBlue p-6">
             {selectedImage ? (
               <img src={selectedImage} alt={product.name} className="max-h-[340px] w-full object-contain" />
             ) : (
               <Package className="h-20 w-20 text-shop-muted" />
+            )}
+            {discountPercent > 0 && (
+              <span className="absolute left-6 bottom-6 z-10 rounded-2xl bg-red-600 px-3 py-1.5 text-sm font-black text-white shadow-lg shadow-red-600/25">
+                -{discountPercent}%
+              </span>
             )}
           </div>
 
@@ -164,21 +208,12 @@ export default function ProductDetailPage() {
             <span className="text-sm font-medium text-shop-muted">Đã bán: {product.sold || 0}</span>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-shop-border bg-shop-bg p-5">
-            <p className="text-sm font-bold text-shop-red">{priceMessage}</p>
-            <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-              <p className="text-4xl font-bold leading-none text-shop-red">{formatPrice(product.price)}</p>
-              <div className="text-right text-sm font-medium text-shop-muted">
-                <p>Trả góp 0%</p>
-                <p>Thanh toán khi nhận hàng</p>
-              </div>
-            </div>
-          </div>
-
+          {/* Short Description */}
           {product.shortDesc && <p className="mt-5 text-sm font-medium leading-7 text-shop-muted">{product.shortDesc}</p>}
 
+          {/* Key Specs Preview */}
           {specPreview.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2">
               {specPreview.map((item) => (
                 <span key={item.key} className="rounded-xl border border-shop-border bg-shop-surface px-3 py-2 text-xs font-bold text-shop-text">
                   {item.key}: <span className="font-medium text-shop-muted">{item.value}</span>
@@ -187,18 +222,42 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          <div className="product-meta-grid mt-5 grid gap-3 rounded-2xl border border-shop-border bg-shop-surface p-4 text-sm sm:grid-cols-2">
+          {/* Metadata Grid */}
+          <div className="product-meta-grid mt-6 grid gap-3 rounded-2xl border border-shop-border bg-shop-surface p-4 text-sm sm:grid-cols-2">
             {product.factory && <MetaLine label="Thương hiệu" value={product.factory} />}
             {product.supplierName && <MetaLine label="Nhà cung cấp" value={product.supplierName} />}
             <MetaLine label="Kho" value={hasStock ? `Còn ${product.quantity} sản phẩm` : 'Hết hàng'} tone={hasStock ? 'success' : 'error'} />
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
+          {/* Pricing Section (placed lower down) */}
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-[#F8FAFC] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Giá bán ưu đãi</span>
+                <div className="flex flex-wrap items-baseline gap-2 mb-1">
+                  <span className="text-4xl font-black leading-none text-shop-red">{formatPrice(product.price)}</span>
+                  {finalOldPrice > 0 && (
+                    <span className="text-sm text-slate-400 line-through font-medium">
+                      {formatPrice(finalOldPrice)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right text-xs font-bold text-slate-500 space-y-1">
+                <p className="bg-shop-softBlue text-shop-navy px-2.5 py-1 rounded inline-block">⚡ Trả góp 0%</p>
+                <p className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded block mt-1">📦 Freeship toàn quốc</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quantity Stepper */}
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <span className="text-sm font-bold text-shop-text">Số lượng</span>
             <QuantityStepper value={qty} max={product.quantity || 1} onChange={setQty} />
           </div>
 
-          <div className="product-action-row mt-5 flex gap-3">
+          {/* Actions */}
+          <div className="product-action-row mt-6 flex gap-3">
             <Button onClick={handleAddToCart} disabled={!hasStock} variant="secondary" className="flex-1" size="lg">
               <ShoppingCart className="h-4 w-4" />
               Thêm vào giỏ
@@ -209,7 +268,7 @@ export default function ProductDetailPage() {
             </Button>
           </div>
 
-          <div className="trust-grid mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="trust-grid mt-8 grid gap-3 sm:grid-cols-3">
             {trustItems.map((item) => {
               const Icon = item.icon
               return (
@@ -284,7 +343,7 @@ export default function ProductDetailPage() {
               <h3 className="text-sm font-bold text-shop-text">Viết đánh giá</h3>
               <div className="mt-3 flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <button key={star} type="button" onClick={() => setReviewForm({ ...reviewForm, rating: star })} className="text-shop-warning">
+                  <button key={star} type="button" onClick={() => setReviewForm({ ...reviewForm, rating: star })} className="text-shop-warning" aria-label={`Chọn ${star} sao`}>
                     <Star className={`h-6 w-6 ${star <= reviewForm.rating ? 'fill-shop-warning' : ''}`} />
                   </button>
                 ))}
@@ -338,11 +397,11 @@ function Section({ title, linkTo, children }) {
 function QuantityStepper({ value, max, onChange }) {
   return (
     <div className="flex h-10 items-center overflow-hidden rounded-xl border border-shop-border bg-shop-surface">
-      <button type="button" onClick={() => onChange((current) => Math.max(1, current - 1))} className="flex h-10 w-10 items-center justify-center text-shop-muted hover:bg-shop-softBlue hover:text-shop-red">
+      <button type="button" onClick={() => onChange((current) => Math.max(1, current - 1))} className="flex h-10 w-10 items-center justify-center text-shop-muted hover:bg-shop-softBlue hover:text-shop-red" aria-label="Giảm số lượng">
         <Minus className="h-4 w-4" />
       </button>
       <span className="w-12 text-center text-sm font-bold text-shop-text">{value}</span>
-      <button type="button" onClick={() => onChange((current) => Math.min(max, current + 1))} className="flex h-10 w-10 items-center justify-center text-shop-muted hover:bg-shop-softBlue hover:text-shop-red">
+      <button type="button" onClick={() => onChange((current) => Math.min(max, current + 1))} className="flex h-10 w-10 items-center justify-center text-shop-muted hover:bg-shop-softBlue hover:text-shop-red" aria-label="Tăng số lượng">
         <Plus className="h-4 w-4" />
       </button>
     </div>

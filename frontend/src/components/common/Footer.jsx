@@ -18,10 +18,10 @@ const shopLinks = [
 ]
 
 const categoryLinks = [
-  { label: 'Điện thoại', to: '/products?keyword=điện%20thoại' },
-  { label: 'Laptop', to: '/products?keyword=laptop' },
-  { label: 'Máy tính bảng', to: '/products?keyword=máy%20tính%20bảng' },
-  { label: 'Phụ kiện', to: '/products?keyword=phụ%20kiện' },
+  { label: 'Điện thoại', to: '/products?categoryName=Điện%20thoại' },
+  { label: 'Laptop', to: '/products?categoryName=Laptop' },
+  { label: 'Máy tính bảng', to: '/products?categoryName=Máy%20tính%20bảng' },
+  { label: 'Phụ kiện', to: '/products?categoryName=Phụ%20kiện' },
 ]
 
 export default function Footer() {

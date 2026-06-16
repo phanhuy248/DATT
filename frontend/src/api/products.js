@@ -21,6 +21,12 @@ export const updateProduct = (id, formData) =>
 export const deleteProduct = (id) =>
   api.delete(`/products/${id}`).then(r => r.data)
 
+export const restoreProduct = (id) =>
+  api.patch(`/products/${id}/restore`).then(r => r.data.data)
+
+export const toggleProductActive = (id) =>
+  api.patch(`/products/${id}/toggle-active`).then(r => r.data.data)
+
 export const importStock = (id, data) =>
   api.post(`/products/${id}/stock-import`, data).then(r => r.data.data)
 

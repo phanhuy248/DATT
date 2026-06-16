@@ -64,18 +64,15 @@ services:
       retries: 5
 
   frontend:
-    image: node:20-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: smartshop-frontend
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-    command: sh -c "npm install && npm run dev -- --host"
     ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8080/api
+      - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   mysql_data:

@@ -13,7 +13,13 @@ export default function NewsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 lg:px-6">
-      <SectionHeader title="Tin tức SMARTSHOP" subtitle="Cập nhật hướng dẫn mua sắm, chính sách và sản phẩm công nghệ" />
+      <div className="mb-6 flex min-w-0 items-start gap-3">
+        <span className="mt-1.5 h-6 w-1.5 shrink-0 rounded-full bg-shop-red" />
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold leading-tight text-shop-text">Tin tức SMARTSHOP</h1>
+          <p className="mt-1 text-sm font-medium text-shop-muted">Cập nhật hướng dẫn mua sắm, chính sách và sản phẩm công nghệ</p>
+        </div>
+      </div>
       {loading ? (
         <div className="spinner" />
       ) : posts.length === 0 ? (
@@ -24,7 +30,7 @@ export default function NewsPage() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((post) => (
             <Link key={post.id} to={`/news/${post.slug}`} className="overflow-hidden rounded-2xl border border-shop-border bg-shop-surface shadow-sm transition hover:border-shop-red hover:shadow-md">
-              {post.thumbnail && <img src={post.thumbnail} alt="" className="h-44 w-full object-cover" />}
+              {post.thumbnail && <img src={post.thumbnail} alt={post.title} className="h-44 w-full object-cover" />}
               <div className="p-5">
                 <h2 className="line-clamp-2 text-base font-bold leading-6 text-shop-text">{post.title}</h2>
                 <p className="mt-2 line-clamp-3 text-sm font-medium leading-6 text-shop-muted">{post.summary}</p>

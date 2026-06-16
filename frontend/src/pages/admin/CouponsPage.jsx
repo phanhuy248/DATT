@@ -1,83 +1,263 @@
 import React, { useEffect, useState } from 'react'
-import { getCoupons, createCoupon, updateCoupon, deleteCoupon } from '../../api/coupons'
+import { Pencil, Plus, Tag, Trash2 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { createCoupon, deleteCoupon, getCoupons, updateCoupon } from '../../api/coupons'
+import {
+  ActiveBadge,
+  Button,
+  Card,
+  Checkbox,
+  ConfirmDialog,
+  DataTable,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+} from '../../components/admin/ui'
 
-const EMPTY = { code: '', description: '', discountType: 'FIXED', discountValue: '', minOrderAmount: 0, usageLimit: 0, active: true }
+const EMPTY = {
+  code: '',
+  description: '',
+  discountType: 'FIXED',
+  discountValue: '',
+  minOrderAmount: 0,
+  usageLimit: 0,
+  active: true,
+}
 
 export default function CouponsPage() {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null)
-  const [form, setForm] = useState(EMPTY)
+  const [items,    setItems]    = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [modal,    setModal]    = useState(null)
+  const [form,     setForm]     = useState(EMPTY)
+  const [saving,   setSaving]   = useState(false)
+  const [toDelete, setToDelete] = useState(null)
 
-  const load = () => getCoupons().then(setItems).finally(() => setLoading(false))
+  const load = () => {
+    setLoading(true)
+    getCoupons().then(setItems).finally(() => setLoading(false))
+  }
   useEffect(() => { load() }, [])
 
   const openCreate = () => { setForm(EMPTY); setModal({ mode: 'create' }) }
-  const openEdit = (c) => { setForm({ ...c }); setModal({ mode: 'edit', data: c }) }
+  const openEdit   = (c) => { setForm({ ...c }); setModal({ mode: 'edit', data: c }) }
 
   const save = async (e) => {
     e.preventDefault()
-    const data = { ...form, discountValue: Number(form.discountValue), minOrderAmount: Number(form.minOrderAmount || 0), usageLimit: Number(form.usageLimit || 0) }
+    if (!form.code.trim()) { toast.error('Mã giảm giá không được để trống'); return }
+    setSaving(true)
+    const data = {
+      ...form,
+      discountValue:  Number(form.discountValue),
+      minOrderAmount: Number(form.minOrderAmount || 0),
+      usageLimit:     Number(form.usageLimit || 0),
+    }
     try {
       modal.mode === 'create' ? await createCoupon(data) : await updateCoupon(modal.data.id, data)
       toast.success('Đã lưu mã giảm giá')
-      setModal(null); load()
-    } catch (err) { toast.error(err.response?.data?.message || 'Không thể lưu') }
+      setModal(null)
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const remove = async (id) => {
-    if (!confirm('Xóa mã giảm giá này?')) return
-    try { await deleteCoupon(id); toast.success('Đã xóa'); load() }
-    catch (err) { toast.error(err.response?.data?.message || 'Không thể xóa') }
+  const handleDelete = async () => {
+    if (!toDelete) return
+    try {
+      await deleteCoupon(toDelete.id)
+      toast.success('Đã xóa mã giảm giá')
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể xóa')
+    } finally {
+      setToDelete(null)
+    }
   }
+
+  const columns = [
+    {
+      key: 'code',
+      header: 'Mã',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+            <Tag size={13} />
+          </div>
+          <span className="font-mono font-bold text-gray-900">{row.code}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'discountType',
+      header: 'Loại',
+      render: (row) => (
+        <span className="text-gray-600">
+          {row.discountType === 'PERCENT' ? 'Phần trăm' : 'Giảm tiền'}
+        </span>
+      ),
+    },
+    {
+      key: 'discountValue',
+      header: 'Giá trị',
+      render: (row) => (
+        <span className="font-semibold text-gray-900">
+          {row.discountType === 'PERCENT'
+            ? `${row.discountValue}%`
+            : `${Number(row.discountValue).toLocaleString('vi-VN')}₫`}
+        </span>
+      ),
+    },
+    {
+      key: 'minOrderAmount',
+      header: 'Đơn tối thiểu',
+      render: (row) => (
+        <span className="text-gray-600">{Number(row.minOrderAmount || 0).toLocaleString('vi-VN')}₫</span>
+      ),
+    },
+    {
+      key: 'usedCount',
+      header: 'Đã dùng',
+      render: (row) => (
+        <span className="text-gray-600">
+          {row.usedCount ?? 0}/{row.usageLimit || '∞'}
+        </span>
+      ),
+    },
+    {
+      key: 'active',
+      header: 'Trạng thái',
+      render: (row) => <ActiveBadge active={row.active} labelOn="Đang bật" labelOff="Tắt" />,
+    },
+    {
+      key: 'actions',
+      header: '',
+      headerClassName: 'w-24',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row) }} title="Chỉnh sửa">
+            <Pencil size={15} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); setToDelete(row) }}
+            className="text-red-500 hover:bg-red-50 hover:text-red-600"
+            title="Xóa"
+          >
+            <Trash2 size={15} />
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div>
-      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>Quản lý khuyến mãi</h1>
-        <button className="btn btn-primary" onClick={openCreate}><i className="fa-solid fa-plus" /> Thêm mã</button>
-      </div>
-      {loading ? <div className="spinner" /> : (
-        <div className="card"><div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
-          <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead><tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              {['Mã', 'Loại', 'Giá trị', 'Đơn tối thiểu', 'Đã dùng', 'Trạng thái', 'Thao tác'].map(h => <th key={h} style={{ padding: 12, textAlign: 'left' }}>{h}</th>)}
-            </tr></thead>
-            <tbody>{items.map(c => (
-              <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td data-label="Mã" style={{ padding: 12, fontWeight: 700 }}>{c.code}</td>
-                <td data-label="Loại" style={{ padding: 12 }}>{c.discountType}</td>
-                <td data-label="Giá trị" style={{ padding: 12 }}>{c.discountType === 'PERCENT' ? `${c.discountValue}%` : `${Number(c.discountValue).toLocaleString('vi-VN')}₫`}</td>
-                <td data-label="Đơn tối thiểu" style={{ padding: 12 }}>{Number(c.minOrderAmount || 0).toLocaleString('vi-VN')}₫</td>
-                <td data-label="Đã dùng" style={{ padding: 12 }}>{c.usedCount}/{c.usageLimit || '∞'}</td>
-                <td data-label="Trạng thái" style={{ padding: 12 }}><span className={`badge ${c.active ? 'badge-success' : 'badge-secondary'}`}>{c.active ? 'Bật' : 'Tắt'}</span></td>
-                <td data-label="Thao tác" style={{ padding: 12 }}><button className="btn btn-secondary btn-sm" onClick={() => openEdit(c)}><i className="fa-solid fa-pen" /></button> <button className="btn btn-danger btn-sm" onClick={() => remove(c.id)}><i className="fa-solid fa-trash" /></button></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div></div>
-      )}
+    <div className="p-6 lg:p-8">
+      <PageHeader
+        title="Quản lý khuyến mãi"
+        breadcrumb={[{ label: 'Admin' }, { label: 'Khuyến mãi' }]}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus size={16} />
+            Thêm mã
+          </Button>
+        }
+      />
 
-      {modal && (
-        <div className="admin-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 520 }}><div className="card-body">
-            <h2 style={{ fontWeight: 700, marginBottom: 16 }}>{modal.mode === 'create' ? 'Thêm mã giảm giá' : 'Sửa mã giảm giá'}</h2>
-            <form onSubmit={save}>
-              <div className="form-group"><label className="form-label">Mã</label><input className="form-control" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Mô tả</label><input className="form-control" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="admin-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div className="form-group"><label className="form-label">Loại</label><select className="form-control" value={form.discountType} onChange={e => setForm({ ...form, discountType: e.target.value })}><option value="FIXED">Giảm tiền</option><option value="PERCENT">Phần trăm</option></select></div>
-                <div className="form-group"><label className="form-label">Giá trị</label><input type="number" className="form-control" value={form.discountValue} onChange={e => setForm({ ...form, discountValue: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Đơn tối thiểu</label><input type="number" className="form-control" value={form.minOrderAmount || 0} onChange={e => setForm({ ...form, minOrderAmount: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Lượt dùng</label><input type="number" className="form-control" value={form.usageLimit || 0} onChange={e => setForm({ ...form, usageLimit: e.target.value })} /></div>
-              </div>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}><input type="checkbox" checked={!!form.active} onChange={e => setForm({ ...form, active: e.target.checked })} /> Đang bật</label>
-              <div className="admin-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary">Lưu</button></div>
-            </form>
-          </div></div>
-        </div>
-      )}
+      <Card>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          getKey={(r) => r.id}
+          emptyMessage="Chưa có mã giảm giá"
+          emptyDescription="Tạo mã giảm giá để áp dụng cho đơn hàng."
+          emptyIcon={<Tag size={28} />}
+        />
+      </Card>
+
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal?.mode === 'create' ? 'Thêm mã giảm giá' : 'Sửa mã giảm giá'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModal(null)}>Hủy</Button>
+            <Button type="submit" form="coupon-form" loading={saving}>Lưu</Button>
+          </>
+        }
+      >
+        <form id="coupon-form" onSubmit={save} className="flex flex-col gap-4">
+          <Input
+            label="Mã giảm giá"
+            required
+            autoFocus
+            placeholder="VD: SUMMER20"
+            value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+          />
+          <Input
+            label="Mô tả"
+            placeholder="Mô tả mã giảm giá..."
+            value={form.description || ''}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Loại giảm"
+              value={form.discountType}
+              onChange={(e) => setForm({ ...form, discountType: e.target.value })}
+            >
+              <option value="FIXED">Giảm tiền (₫)</option>
+              <option value="PERCENT">Phần trăm (%)</option>
+            </Select>
+            <Input
+              label={form.discountType === 'PERCENT' ? 'Giá trị (%)' : 'Giá trị (₫)'}
+              type="number"
+              required
+              min={0}
+              placeholder="0"
+              value={form.discountValue}
+              onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Đơn tối thiểu (₫)"
+              type="number"
+              min={0}
+              placeholder="0"
+              value={form.minOrderAmount || 0}
+              onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })}
+            />
+            <Input
+              label="Giới hạn lượt dùng"
+              type="number"
+              min={0}
+              placeholder="0 = không giới hạn"
+              value={form.usageLimit || 0}
+              onChange={(e) => setForm({ ...form, usageLimit: e.target.value })}
+            />
+          </div>
+          <Checkbox
+            label="Đang bật"
+            checked={!!form.active}
+            onChange={(v) => setForm({ ...form, active: v })}
+          />
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={handleDelete}
+        title="Xóa mã giảm giá"
+        description={`Bạn có chắc muốn xóa mã "${toDelete?.code}"?`}
+        confirmLabel="Xóa"
+      />
     </div>
   )
 }

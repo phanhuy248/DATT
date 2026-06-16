@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Headphones, Laptop, Smartphone, Speaker, Tablet } from 'lucide-react'
 import { brands, sidebarCategories } from './mockData'
 
@@ -7,6 +8,10 @@ const iconMap = {
   tablet: Tablet,
   headphones: Headphones,
   speaker: Speaker,
+}
+
+function categoryHref(category) {
+  return `/products?categoryName=${encodeURIComponent(category.name)}`
 }
 
 export default function Sidebar() {
@@ -21,9 +26,9 @@ export default function Sidebar() {
             const Icon = iconMap[category.icon]
 
             return (
-              <a
+              <Link
                 key={category.id}
-                href={`/products?keyword=${encodeURIComponent(category.keyword || category.name)}`}
+                to={categoryHref(category)}
                 className={[
                   'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition',
                   category.active ? 'bg-shop-red text-white' : 'text-shop-text hover:bg-shop-softBlue hover:text-shop-red',
@@ -31,7 +36,7 @@ export default function Sidebar() {
               >
                 <Icon className="h-4 w-4" />
                 {category.name}
-              </a>
+              </Link>
             )
           })}
         </nav>
@@ -41,13 +46,13 @@ export default function Sidebar() {
         <h2 className="text-base font-bold text-shop-text">Thương hiệu nổi bật</h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {brands.map((brand) => (
-            <a
+            <Link
               key={brand}
-              href={`/products?keyword=${encodeURIComponent(brand)}`}
+              to={`/products?brand=${encodeURIComponent(brand)}`}
               className="rounded-xl border border-shop-border bg-shop-bg px-3 py-2 text-xs font-bold text-shop-text transition hover:border-shop-red hover:text-shop-red"
             >
               {brand}
-            </a>
+            </Link>
           ))}
         </div>
       </section>

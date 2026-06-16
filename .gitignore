@@ -12,7 +12,6 @@ uploads/
 .env.*
 !.env.example
 .codex-docx-review/
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 

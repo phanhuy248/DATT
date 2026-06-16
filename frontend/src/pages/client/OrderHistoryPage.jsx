@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
-import { getMyOrders } from '../../api/orders'
+import { cancelMyOrder, getMyOrders } from '../../api/orders'
 import OrderCard, { formatOrderCode } from '../../components/order/OrderCard'
 import Button from '../../components/ui/Button'
 import SectionHeader from '../../components/ui/SectionHeader'
 
 const statusFilters = [
   { value: 'ALL', label: 'Tất cả', statuses: [] },
-  { value: 'PROCESSING', label: 'Đang xử lý', statuses: ['PENDING', 'CONFIRMED', 'PACKING'] },
+  { value: 'PROCESSING', label: 'Đang chuẩn bị hàng', statuses: ['PENDING', 'CONFIRMED', 'PROCESSING'] },
   { value: 'SHIPPING', label: 'Đang giao hàng', statuses: ['SHIPPING'] },
-  { value: 'DELIVERED', label: 'Đã giao hàng', statuses: ['DELIVERED'] },
-  { value: 'CANCELLED', label: 'Đã hủy', statuses: ['CANCELLED', 'RETURNED'] },
+  { value: 'COMPLETED', label: 'Hoàn thành', statuses: ['COMPLETED'] },
+  { value: 'CANCELLED', label: 'Đã hủy', statuses: ['CANCELLED'] },
 ]
 
 const sortOptions = [
@@ -36,6 +36,8 @@ export default function OrderHistoryPage() {
   const [error, setError] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState(null)
+  const [cancellingOrderId, setCancellingOrderId] = useState(null)
+  const [cancelError, setCancelError] = useState('')
   const [draftFilters, setDraftFilters] = useState(() => ({
     ...defaultFilters,
     query: searchParams.get('keyword') || '',
@@ -75,6 +77,19 @@ export default function OrderHistoryPage() {
 
   const filteredOrders = useMemo(() => applyFilters(orders, appliedFilters), [orders, appliedFilters])
 
+  async function handleCancelOrder(orderId) {
+    setCancellingOrderId(orderId)
+    setCancelError('')
+    try {
+      const updated = await cancelMyOrder(orderId)
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)))
+    } catch (err) {
+      setCancelError(err?.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng thử lại.')
+    } finally {
+      setCancellingOrderId(null)
+    }
+  }
+
   const applyDraftFilters = () => {
     setAppliedFilters(draftFilters)
     setDrawerOpen(false)
@@ -102,6 +117,7 @@ export default function OrderHistoryPage() {
           </div>
 
           {error && <div className="mb-5 rounded-2xl border border-shop-error/20 bg-shop-error/10 px-5 py-4 text-sm font-bold text-shop-error">{error}</div>}
+          {cancelError && <div className="mb-5 rounded-2xl border border-shop-error/20 bg-shop-error/10 px-5 py-4 text-sm font-bold text-shop-error">{cancelError}</div>}
 
           {loading ? (
             <OrderSkeletonList />
@@ -115,6 +131,8 @@ export default function OrderHistoryPage() {
                     order={order}
                     expanded={expandedOrder === key}
                     onToggle={() => setExpandedOrder((current) => (current === key ? null : key))}
+                    onCancel={handleCancelOrder}
+                    cancelling={cancellingOrderId === order.id}
                   />
                 )
               })}

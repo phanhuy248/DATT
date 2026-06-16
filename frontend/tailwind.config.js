@@ -22,7 +22,7 @@ export default {
           surface: '#FFFFFF',
           softBlue: '#EAF2FF',
           text: '#111827',
-          muted: '#6B7280',
+          muted: '#4B5563',
           border: '#E5E7EB',
           success: '#16A34A',
           warning: '#F59E0B',

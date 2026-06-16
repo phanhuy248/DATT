@@ -14,6 +14,15 @@ const PAGES = {
       'Website giúp khách hàng tìm sản phẩm, xem thông số, đặt hàng trực tuyến và theo dõi trạng thái đơn hàng trong một hệ thống rõ ràng.',
     ],
   },
+  stores: {
+    title: 'Hệ thống cửa hàng SMARTSHOP',
+    body: [
+      'Chi nhánh 1: 123 Đường Láng, Đống Đa, Hà Nội - Hotline: 0911 430 001',
+      'Chi nhánh 2: 456 Lê Hồng Phong, Quận 10, TP. Hồ Chí Minh - Hotline: 0911 430 002',
+      'Chi nhánh 3: 789 Nguyễn Văn Linh, Hải Châu, Đà Nẵng - Hotline: 0911 430 003',
+      'Thời gian làm việc: Từ 8h00 đến 21h30 tất cả các ngày trong tuần (kể cả Chủ nhật và ngày lễ).',
+    ],
+  },
   promotions: {
     title: 'Khuyến mãi và ưu đãi',
     body: [
@@ -177,17 +186,18 @@ export default function InfoPage() {
 }
 
 function ContactField({ label, value, onChange, type = 'text', textarea = false, required = false }) {
+  const fieldId = `contact-${label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '-')}`
   return (
-    <label className="block">
-      <span className="form-label">
+    <div className="block">
+      <label htmlFor={fieldId} className="form-label">
         {label}
         {required && ' *'}
-      </span>
+      </label>
       {textarea ? (
-        <textarea className="form-control" rows={5} value={value} onChange={(event) => onChange(event.target.value)} />
+        <textarea id={fieldId} className="form-control" rows={5} value={value} onChange={(event) => onChange(event.target.value)} />
       ) : (
-        <input className="form-control" type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+        <input id={fieldId} className="form-control" type={type} value={value} onChange={(event) => onChange(event.target.value)} />
       )}
-    </label>
+    </div>
   )
 }

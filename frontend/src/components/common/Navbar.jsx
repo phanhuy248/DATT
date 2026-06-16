@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronDown, LogOut, Menu, Receipt, Search, ShoppingCart, User, X } from 'lucide-react'
+import { ChevronDown, Heart, LogOut, Menu, Receipt, Search, ShoppingCart, User, X } from 'lucide-react'
 import Button from '../ui/Button'
 import BrandLogo from './BrandLogo'
 import { useAuth } from '../../context/AuthContext'
@@ -24,6 +24,18 @@ export default function Navbar() {
   const [keyword, setKeyword] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const accountRef = useRef(null)
+
+  useEffect(() => {
+    if (!accountOpen) return
+    function handleClickOutside(event) {
+      if (accountRef.current && !accountRef.current.contains(event.target)) {
+        setAccountOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [accountOpen])
 
   const cartCount = cart?.totalItems || 0
 
@@ -87,6 +99,12 @@ export default function Navbar() {
         </form>
 
         <div className="flex items-center gap-2">
+          {user && (
+            <Button to="/wishlist" variant="icon" aria-label="Yêu thích">
+              <Heart className="h-5 w-5" />
+            </Button>
+          )}
+
           <Button to="/cart" variant="icon" aria-label="Giỏ hàng" className="relative">
             <ShoppingCart className="h-5 w-5" />
             {cartCount > 0 && (
@@ -97,7 +115,7 @@ export default function Navbar() {
           </Button>
 
           {user ? (
-            <div className="relative">
+            <div className="relative" ref={accountRef}>
               <button
                 type="button"
                 onClick={() => setAccountOpen((open) => !open)}
@@ -125,6 +143,7 @@ export default function Navbar() {
                   {user.role === 'ADMIN' && <MenuItem to="/admin/dashboard" icon={Receipt} label="Admin Panel" onClick={() => setAccountOpen(false)} />}
                   <MenuItem to="/account" icon={User} label="Tài khoản" onClick={() => setAccountOpen(false)} />
                   <MenuItem to="/orders" icon={Receipt} label="Đơn hàng" onClick={() => setAccountOpen(false)} />
+                  <MenuItem to="/wishlist" icon={Heart} label="Yêu thích" onClick={() => setAccountOpen(false)} />
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -179,6 +198,15 @@ export default function Navbar() {
                 {item.label}
               </Link>
             ))}
+            {!user && (
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="mt-2 rounded-xl bg-shop-red px-3 py-2.5 text-center text-sm font-bold text-white transition hover:bg-shop-dark"
+              >
+                Đăng nhập
+              </Link>
+            )}
           </nav>
         </div>
       )}

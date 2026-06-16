@@ -53,14 +53,14 @@ export default function LoginPage() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input type="email" className="form-control" placeholder="your@email.com"
+                <label htmlFor="login-email" className="form-label">Email</label>
+                <input id="login-email" type="email" className="form-control" placeholder="your@email.com"
                   value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                 {errors.email && <p className="form-error">{errors.email}</p>}
               </div>
               <div className="form-group">
-                <label className="form-label">Mật khẩu</label>
-                <input type="password" className="form-control" placeholder="••••••"
+                <label htmlFor="login-password" className="form-label">Mật khẩu</label>
+                <input id="login-password" type="password" className="form-control" placeholder="••••••"
                   value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
                 {errors.password && <p className="form-error">{errors.password}</p>}
               </div>
@@ -70,7 +70,7 @@ export default function LoginPage() {
             </form>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
               <div style={{ flex: 1, height: 1, background: '#E5E7EB' }} />
-              <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>Hoặc</span>
+              <span style={{ fontSize: 12, color: '#4B5563', fontWeight: 500 }}>Hoặc</span>
               <div style={{ flex: 1, height: 1, background: '#E5E7EB' }} />
             </div>
             <button type="button" className="btn btn-full btn-lg" onClick={handleGoogleLogin}

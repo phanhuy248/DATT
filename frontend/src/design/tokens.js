@@ -6,7 +6,7 @@ export const designTokens = {
     surface: '#FFFFFF',
     softBlue: '#EAF2FF',
     textMain: '#111827',
-    textMuted: '#6B7280',
+    textMuted: '#4B5563',
     border: '#E5E7EB',
     success: '#16A34A',
     warning: '#F59E0B',

@@ -14,10 +14,12 @@ const ProductDetailPage = lazy(() => import('./pages/client/ProductDetailPage'))
 const CartPage = lazy(() => import('./pages/client/CartPage'))
 const CheckoutPage = lazy(() => import('./pages/client/CheckoutPage'))
 const OrderSuccessPage = lazy(() => import('./pages/client/OrderSuccessPage'))
+const OrderPaymentPage = lazy(() => import('./pages/client/OrderPaymentPage'))
 const OrderHistoryPage = lazy(() => import('./pages/client/OrderHistoryPage'))
 const VnpayReturnPage = lazy(() => import('./pages/client/VnpayReturnPage'))
 const BankTransferPaymentPage = lazy(() => import('./pages/client/BankTransferPaymentPage'))
 const AccountPage = lazy(() => import('./pages/client/AccountPage'))
+const WishlistPage = lazy(() => import('./pages/client/WishlistPage'))
 const NewsPage = lazy(() => import('./pages/client/NewsPage'))
 const PostDetailPage = lazy(() => import('./pages/client/PostDetailPage'))
 const InfoPage = lazy(() => import('./pages/client/InfoPage'))
@@ -34,6 +36,7 @@ const AdminProducts = lazy(() => import('./pages/admin/ProductsPage'))
 const AdminCategories = lazy(() => import('./pages/admin/CategoriesPage'))
 const AdminUsers = lazy(() => import('./pages/admin/UsersPage'))
 const AdminOrders = lazy(() => import('./pages/admin/OrdersPage'))
+const AdminFlashSales = lazy(() => import('./pages/admin/AdminFlashSalesPage'))
 const AdminCoupons = lazy(() => import('./pages/admin/CouponsPage'))
 const AdminSuppliers = lazy(() => import('./pages/admin/SuppliersPage'))
 const AdminPosts = lazy(() => import('./pages/admin/PostsPage'))
@@ -78,8 +81,10 @@ export default function App() {
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/payment/bank-transfer/:orderId" element={<BankTransferPaymentPage />} />
               <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+              <Route path="/orders/:id/payment" element={<OrderPaymentPage />} />
               <Route path="/orders" element={<OrderHistoryPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
             </Route>
           </Route>
 
@@ -92,6 +97,7 @@ export default function App() {
               <Route path="/admin/categories" element={<AdminCategories />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/flash-sales" element={<AdminFlashSales />} />
               <Route path="/admin/coupons" element={<AdminCoupons />} />
               <Route path="/admin/banners" element={<AdminBanners />} />
               <Route path="/admin/suppliers" element={<AdminSuppliers />} />

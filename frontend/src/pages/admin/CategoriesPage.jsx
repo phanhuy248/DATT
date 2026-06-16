@@ -1,19 +1,40 @@
 import React, { useEffect, useState } from 'react'
-import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/categories'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { createCategory, deleteCategory, getCategories, updateCategory } from '../../api/categories'
+import {
+  Button,
+  Card,
+  ConfirmDialog,
+  DataTable,
+  Input,
+  Modal,
+  PageHeader,
+  Textarea,
+} from '../../components/admin/ui'
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // null | { mode:'create'|'edit', data? }
-  const [form, setForm] = useState({ name: '', description: '' })
-  const [saving, setSaving] = useState(false)
+  const [loading,    setLoading]    = useState(true)
+  const [modal,      setModal]      = useState(null) // null | { mode, data? }
+  const [form,       setForm]       = useState({ name: '', description: '' })
+  const [saving,     setSaving]     = useState(false)
+  const [toDelete,   setToDelete]   = useState(null)
 
-  const load = () => getCategories().then(setCategories).finally(() => setLoading(false))
+  const load = () => {
+    setLoading(true)
+    getCategories().then(setCategories).finally(() => setLoading(false))
+  }
   useEffect(() => { load() }, [])
 
-  const openCreate = () => { setForm({ name: '', description: '' }); setModal({ mode: 'create' }) }
-  const openEdit = (cat) => { setForm({ name: cat.name, description: cat.description || '' }); setModal({ mode: 'edit', data: cat }) }
+  const openCreate = () => {
+    setForm({ name: '', description: '' })
+    setModal({ mode: 'create' })
+  }
+  const openEdit = (cat) => {
+    setForm({ name: cat.name, description: cat.description || '' })
+    setModal({ mode: 'edit', data: cat })
+  }
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -29,92 +50,135 @@ export default function CategoriesPage() {
       }
       setModal(null)
       load()
-    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại') }
-    finally { setSaving(false) }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Thao tác thất bại')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Xóa danh mục "${name}"?`)) return
-    try { await deleteCategory(id); toast.success('Đã xóa danh mục'); load() }
-    catch (err) { toast.error(err.response?.data?.message || 'Không thể xóa') }
+  const handleDelete = async () => {
+    if (!toDelete) return
+    try {
+      await deleteCategory(toDelete.id)
+      toast.success('Đã xóa danh mục')
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể xóa')
+    } finally {
+      setToDelete(null)
+    }
   }
+
+  const columns = [
+    {
+      key: 'id',
+      header: 'ID',
+      headerClassName: 'w-16',
+      render: (row) => <span className="text-xs text-gray-400">#{row.id}</span>,
+    },
+    {
+      key: 'name',
+      header: 'Tên danh mục',
+      render: (row) => <span className="font-semibold text-gray-900">{row.name}</span>,
+    },
+    {
+      key: 'description',
+      header: 'Mô tả',
+      render: (row) => <span className="text-gray-500">{row.description || '—'}</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      headerClassName: 'w-24',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); openEdit(row) }}
+            title="Chỉnh sửa"
+          >
+            <Pencil size={15} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); setToDelete(row) }}
+            className="text-red-500 hover:bg-red-50 hover:text-red-600"
+            title="Xóa"
+          >
+            <Trash2 size={15} />
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div>
-      <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>Quản lý danh mục</h1>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <i className="fa-solid fa-plus" /> Thêm danh mục
-        </button>
-      </div>
+    <div className="p-6 lg:p-8">
+      <PageHeader
+        title="Quản lý danh mục"
+        breadcrumb={[{ label: 'Admin' }, { label: 'Danh mục' }]}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus size={16} />
+            Thêm danh mục
+          </Button>
+        }
+      />
 
-      {loading ? <div className="spinner" /> : (
-        <div className="card">
-          <div className="admin-table-wrap" style={{ overflowX: 'auto' }}>
-            <table className="admin-table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
-                  {['ID', 'Tên danh mục', 'Mô tả', 'Thao tác'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {categories.length === 0
-                  ? <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chưa có danh mục</td></tr>
-                  : categories.map(cat => (
-                    <tr key={cat.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td data-label="ID" style={{ padding: '12px 16px', color: '#6b7280' }}>#{cat.id}</td>
-                      <td data-label="Tên danh mục" style={{ padding: '12px 16px', fontWeight: 600 }}>{cat.name}</td>
-                      <td data-label="Mô tả" style={{ padding: '12px 16px', color: '#6b7280' }}>{cat.description || '—'}</td>
-                      <td data-label="Thao tác" style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(cat)}>
-                            <i className="fa-solid fa-pen" />
-                          </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(cat.id, cat.name)}>
-                            <i className="fa-solid fa-trash" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <Card>
+        <DataTable
+          columns={columns}
+          data={categories}
+          loading={loading}
+          getKey={(r) => r.id}
+          emptyMessage="Chưa có danh mục"
+          emptyDescription="Thêm danh mục đầu tiên để bắt đầu phân loại sản phẩm."
+        />
+      </Card>
 
-      {modal && (
-        <div className="admin-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 440 }}>
-            <div className="card-body">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontWeight: 700, fontSize: 18 }}>
-                  {modal.mode === 'create' ? 'Thêm danh mục' : 'Chỉnh sửa danh mục'}
-                </h2>
-                <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280' }}>×</button>
-              </div>
-              <form onSubmit={handleSave}>
-                <div className="form-group">
-                  <label className="form-label">Tên danh mục *</label>
-                  <input className="form-control" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoFocus />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Mô tả</label>
-                  <textarea className="form-control" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-                </div>
-                <div className="admin-modal-actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Hủy</button>
-                  <button type="submit" className="btn btn-primary" disabled={saving}>
-                    {saving ? 'Đang lưu...' : 'Lưu'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Create / Edit modal */}
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal?.mode === 'create' ? 'Thêm danh mục' : 'Chỉnh sửa danh mục'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModal(null)}>Hủy</Button>
+            <Button type="submit" form="cat-form" loading={saving}>Lưu</Button>
+          </>
+        }
+      >
+        <form id="cat-form" onSubmit={handleSave} className="flex flex-col gap-4">
+          <Input
+            label="Tên danh mục"
+            required
+            autoFocus
+            placeholder="Nhập tên danh mục..."
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <Textarea
+            label="Mô tả"
+            rows={3}
+            placeholder="Nhập mô tả (tùy chọn)..."
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </form>
+      </Modal>
+
+      {/* Confirm delete */}
+      <ConfirmDialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={handleDelete}
+        title="Xóa danh mục"
+        description={`Bạn có chắc muốn xóa danh mục "${toDelete?.name}"? Thao tác này không thể hoàn tác.`}
+        confirmLabel="Xóa"
+      />
     </div>
   )
 }
