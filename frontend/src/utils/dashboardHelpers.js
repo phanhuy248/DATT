@@ -166,10 +166,7 @@ export function buildDashboardStats(overview, topCustomers) {
   const totalOrders = safeNumber(overview.totalOrders)
   const completed = safeNumber(status.COMPLETED)
   const waiting = safeNumber(status.PENDING) + safeNumber(status.CONFIRMED) + safeNumber(status.PROCESSING)
-  const today = new Date().toDateString()
-  const todayOrders = (overview.recentOrders || []).filter(
-    (o) => parseDate(o.createdDate)?.toDateString() === today
-  ).length
+  const todayOrders = safeNumber(overview.todayOrders)
   const completionRate = totalOrders > 0 ? ((completed / totalOrders) * 100).toFixed(1) : '0.0'
 
   return [

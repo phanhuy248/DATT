@@ -10,9 +10,15 @@ type PaginationProps = {
   onPageSizeChange: (size: number) => void
 }
 
+function pagesToShow(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i)
+  if (current <= 3) return [0, 1, 2, 3, '…', total - 1]
+  if (current >= total - 4) return [0, '…', total - 4, total - 3, total - 2, total - 1]
+  return [0, '…', current - 1, current, current + 1, '…', total - 1]
+}
+
 export default function Pagination({ page, pageSize, totalItems, totalPages, onPageChange, onPageSizeChange }: PaginationProps) {
-  const pages = Array.from({ length: Math.min(totalPages || 1, 3) }, (_, index) => index)
-  const hasNext = page < Math.max(totalPages - 1, 0)
+  const pages = pagesToShow(page, totalPages || 1)
 
   return (
     <div className="flex flex-col gap-4 border-t border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
@@ -40,27 +46,25 @@ export default function Pagination({ page, pageSize, totalItems, totalPages, onP
         >
           <ChevronLeft size={18} />
         </button>
-        {pages.map((pageIndex) => (
-          <button
-            key={pageIndex}
-            className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-extrabold transition ${pageIndex === page ? 'bg-[#c70039] text-white shadow-[0_10px_20px_rgba(199,0,57,0.24)]' : 'bg-white text-[#2f1717] hover:bg-rose-50'}`}
-            onClick={() => onPageChange(pageIndex)}
-            type="button"
-          >
-            {pageIndex + 1}
-          </button>
-        ))}
-        {totalPages > 4 && (
-          <>
-            <span className="px-2 font-bold text-[#9a7a79]">...</span>
-            <button className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-white px-3 text-sm font-extrabold text-[#2f1717] transition hover:bg-rose-50" onClick={() => onPageChange(totalPages - 1)} type="button">
-              {totalPages}
+        {pages.map((p, i) =>
+          p === '…' ? (
+            <span key={`e${i}`} className="flex h-11 w-8 items-center justify-center font-bold text-[#9a7a79]">
+              ...
+            </span>
+          ) : (
+            <button
+              key={p}
+              className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-extrabold transition ${p === page ? 'bg-[#c70039] text-white shadow-[0_10px_20px_rgba(199,0,57,0.24)]' : 'bg-white text-[#2f1717] hover:bg-rose-50'}`}
+              onClick={() => onPageChange(p as number)}
+              type="button"
+            >
+              {(p as number) + 1}
             </button>
-          </>
+          )
         )}
         <button
           className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#4a2c2b] transition hover:border-[#c70039] hover:text-[#c70039] disabled:cursor-not-allowed disabled:opacity-45"
-          disabled={!hasNext}
+          disabled={page >= (totalPages || 1) - 1}
           onClick={() => onPageChange(page + 1)}
           type="button"
           aria-label="Trang sau"

@@ -53,6 +53,15 @@ public class Order {
     private String transactionCode;
     private String couponCode;
 
+    @Column(name = "cancel_reason")
+    private String cancelReason;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
     @CreationTimestamp
     @Column(name = "created_date", updatable = false)
     private LocalDateTime createdDate;
@@ -70,8 +79,12 @@ public class Order {
 
     @PrePersist
     public void prePersist() {
-        if (this.status == null) this.status = OrderStatus.PENDING;
         if (this.paymentMethod == null) this.paymentMethod = PaymentMethod.COD;
+        if (this.status == null) {
+            // COD không cần chờ thanh toán → PENDING ngay; online → PENDING_PAYMENT
+            this.status = this.paymentMethod == PaymentMethod.COD
+                    ? OrderStatus.PENDING : OrderStatus.PENDING_PAYMENT;
+        }
         if (this.paymentStatus == null) {
             this.paymentStatus = this.paymentMethod == PaymentMethod.COD
                     ? PaymentStatus.UNPAID : PaymentStatus.PENDING;
@@ -122,6 +135,15 @@ public class Order {
 
     public List<OrderDetail> getOrderDetails() { return orderDetails; }
     public void setOrderDetails(List<OrderDetail> orderDetails) { this.orderDetails = orderDetails; }
+
+    public String getCancelReason() { return cancelReason; }
+    public void setCancelReason(String cancelReason) { this.cancelReason = cancelReason; }
+
+    public LocalDateTime getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 
     @Override
     public String toString() {

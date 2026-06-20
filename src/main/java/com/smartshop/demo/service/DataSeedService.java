@@ -180,7 +180,7 @@ public class DataSeedService {
             p.setShortDesc(s.shortDesc());
             p.setDetailDesc(buildDetailDesc(s));
             p.setQuantity(s.stock());
-            p.setSold(s.sold());
+            p.setSold(0);
             p.setTarget("Nam, Nữ");
             p.setCategory(cat);
             productRepository.save(p);

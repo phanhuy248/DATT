@@ -40,11 +40,17 @@ public class ProductSpecification {
                 String normalizedKeyword = stripVietnamese(keyword.trim().toLowerCase(Locale.ROOT));
 
                 if (isTabletKeyword(normalizedKeyword)) {
-                    predicates.add(categoryNameLike(cb, category, "may tinh bang", "tablet"));
+                    predicates.add(cb.or(
+                            categoryNameLike(cb, category, "may tinh bang", "tablet"),
+                            cb.like(cb.lower(root.get("name")), "%" + normalizedKeyword + "%")));
                 } else if (isLaptopKeyword(normalizedKeyword)) {
-                    predicates.add(categoryNameLike(cb, category, "laptop"));
+                    predicates.add(cb.or(
+                            categoryNameLike(cb, category, "laptop", "may tinh", "notebook"),
+                            cb.like(cb.lower(root.get("name")), "%" + normalizedKeyword + "%")));
                 } else if (isSmartphoneKeyword(normalizedKeyword)) {
-                    predicates.add(categoryNameLike(cb, category, "dien thoai", "smartphone"));
+                    predicates.add(cb.or(
+                            categoryNameLike(cb, category, "dien thoai", "smartphone"),
+                            cb.like(cb.lower(root.get("name")), "%" + normalizedKeyword + "%")));
                 } else {
                     List<Predicate> keywordPredicates = new ArrayList<>();
                     boolean searchDetails = shouldSearchDetails(normalizedKeyword);

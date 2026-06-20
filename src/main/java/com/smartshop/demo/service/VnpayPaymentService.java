@@ -12,6 +12,8 @@ import com.smartshop.demo.exception.ResourceNotFoundException;
 import com.smartshop.demo.repository.OrderRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,17 +34,16 @@ import java.util.stream.Collectors;
 
 @Service
 public class VnpayPaymentService {
+    private static final Logger log = LoggerFactory.getLogger(VnpayPaymentService.class);
     private static final DateTimeFormatter VNPAY_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final BigDecimal VNP_AMOUNT_MULTIPLIER = BigDecimal.valueOf(100);
 
     private final VnpayProperties properties;
     private final OrderRepository orderRepository;
-    private final CartService cartService;
 
-    public VnpayPaymentService(VnpayProperties properties, OrderRepository orderRepository, CartService cartService) {
+    public VnpayPaymentService(VnpayProperties properties, OrderRepository orderRepository) {
         this.properties = properties;
         this.orderRepository = orderRepository;
-        this.cartService = cartService;
     }
 
     @Transactional
@@ -59,14 +60,17 @@ public class VnpayPaymentService {
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new IllegalStateException("Đơn hàng đã hủy không thể thanh toán");
         }
-        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+        if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
             throw new IllegalStateException("Đơn hàng đã được thanh toán");
         }
         if (order.getTotalPrice() == null || order.getTotalPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalStateException("Số tiền thanh toán không hợp lệ");
         }
 
-        if (order.getPaymentStatus() != PaymentStatus.PENDING) {
+        // Đảm bảo trạng thái là PENDING_PAYMENT và paymentStatus = PENDING
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT
+                || order.getPaymentStatus() != PaymentStatus.PENDING) {
+            order.setStatus(OrderStatus.PENDING_PAYMENT);
             order.setPaymentStatus(PaymentStatus.PENDING);
             order.setTransactionCode(null);
             orderRepository.save(order);
@@ -111,15 +115,9 @@ public class VnpayPaymentService {
         boolean success = gatewaySuccess && updateResult.success();
 
         return new VnpayReturnResult(
-                valid,
-                success,
-                orderId,
-                txnRef,
-                responseCode,
-                transactionStatus,
-                transactionNo,
-                updateResult.message()
-        );
+                valid, success, orderId, txnRef,
+                responseCode, transactionStatus, transactionNo,
+                updateResult.message());
     }
 
     @Transactional
@@ -131,21 +129,21 @@ public class VnpayPaymentService {
             }
 
             Long orderId = parseOrderId(params.get("vnp_TxnRef"));
-            if (orderId == null) {
-                return ipnResponse("01", "Order not found");
-            }
+            if (orderId == null) return ipnResponse("01", "Order not found");
 
             Order order = orderRepository.findById(orderId).orElse(null);
-            if (order == null) {
-                return ipnResponse("01", "Order not found");
+            if (order == null) return ipnResponse("01", "Order not found");
+            if (order.getPaymentMethod() != PaymentMethod.VNPAY) return ipnResponse("01", "Order not found");
+
+            // ── Bảo vệ: đơn đã hủy → từ chối, không cập nhật ──────────────────
+            if (order.getStatus() == OrderStatus.CANCELLED) {
+                log.warn("[VNPay IPN] Đơn #{} đã CANCELLED, bỏ qua callback thành công từ VNPay (txnRef={})",
+                        orderId, params.get("vnp_TxnRef"));
+                return ipnResponse("02", "Order already cancelled");
             }
-            if (order.getPaymentMethod() != PaymentMethod.VNPAY) {
-                return ipnResponse("01", "Order not found");
-            }
-            if (!amountMatches(order, params)) {
-                return ipnResponse("04", "Invalid amount");
-            }
-            if (order.getPaymentStatus() == PaymentStatus.PAID) {
+
+            if (!amountMatches(order, params)) return ipnResponse("04", "Invalid amount");
+            if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
                 return ipnResponse("02", "Order already confirmed");
             }
 
@@ -153,36 +151,41 @@ public class VnpayPaymentService {
             String transactionStatus = params.get("vnp_TransactionStatus");
             String transactionNo = params.get("vnp_TransactionNo");
             order.setTransactionCode(transactionNo);
+
             if ("00".equals(responseCode) && "00".equals(transactionStatus)) {
-                order.setPaymentStatus(PaymentStatus.PAID);
+                order.setPaymentStatus(PaymentStatus.SUCCESS);
+                order.setPaidAt(LocalDateTime.now());
                 order.setStatus(OrderStatus.CONFIRMED);
                 orderRepository.save(order);
-                if (order.getUser() != null) {
-                    cartService.clearCart(order.getUser());
-                }
+                log.info("[VNPay IPN] Đơn #{} → CONFIRMED + SUCCESS (txn={})", orderId, transactionNo);
             } else {
                 order.setPaymentStatus(failedPaymentStatus(responseCode));
                 orderRepository.save(order);
             }
             return ipnResponse("00", "Confirm Success");
         } catch (Exception ex) {
+            log.error("[VNPay IPN] Lỗi xử lý IPN: {}", ex.getMessage(), ex);
             return ipnResponse("99", "Unknown error");
         }
     }
 
     private PaymentUpdateResult updateOrderPayment(Map<String, String> params, boolean gatewaySuccess) {
         Long orderId = parseOrderId(params.get("vnp_TxnRef"));
-        if (orderId == null) {
-            return new PaymentUpdateResult(false, "Không tìm thấy đơn hàng");
-        }
+        if (orderId == null) return new PaymentUpdateResult(false, "Không tìm thấy đơn hàng");
 
         Order order = orderRepository.findById(orderId).orElse(null);
-        if (order == null) {
-            return new PaymentUpdateResult(false, "Không tìm thấy đơn hàng");
-        }
+        if (order == null) return new PaymentUpdateResult(false, "Không tìm thấy đơn hàng");
         if (order.getPaymentMethod() != PaymentMethod.VNPAY) {
-            return new PaymentUpdateResult(false, "Don hang khong su dung phuong thuc VNPAY");
+            return new PaymentUpdateResult(false, "Đơn hàng không sử dụng phương thức VNPAY");
         }
+
+        // ── Bảo vệ: đơn đã hủy → từ chối ───────────────────────────────────────
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("[VNPay Return] Đơn #{} đã CANCELLED, bỏ qua return callback (txnRef={})",
+                    orderId, params.get("vnp_TxnRef"));
+            return new PaymentUpdateResult(false, "Đơn hàng đã hết hạn thanh toán");
+        }
+
         if (!amountMatches(order, params)) {
             return new PaymentUpdateResult(false, "Số tiền thanh toán không khớp với đơn hàng");
         }
@@ -193,16 +196,15 @@ public class VnpayPaymentService {
         }
 
         if (gatewaySuccess) {
-            order.setPaymentStatus(PaymentStatus.PAID);
+            order.setPaymentStatus(PaymentStatus.SUCCESS);
+            order.setPaidAt(LocalDateTime.now());
             order.setStatus(OrderStatus.CONFIRMED);
             orderRepository.save(order);
-            if (order.getUser() != null) {
-                cartService.clearCart(order.getUser());
-            }
+            log.info("[VNPay Return] Đơn #{} → CONFIRMED + SUCCESS (txn={})", orderId, transactionNo);
             return new PaymentUpdateResult(true, "Thanh toán thành công");
         }
 
-        if (order.getPaymentStatus() != PaymentStatus.PAID) {
+        if (order.getPaymentStatus() != PaymentStatus.SUCCESS) {
             order.setPaymentStatus(failedPaymentStatus(params.get("vnp_ResponseCode")));
             orderRepository.save(order);
         }
@@ -210,8 +212,7 @@ public class VnpayPaymentService {
     }
 
     private PaymentStatus failedPaymentStatus(String responseCode) {
-        // responseCode=24: user tự hủy → CANCELLED (hiển thị rõ, vẫn thử lại được)
-        // responseCode khác: lỗi thật → FAILED
+        // responseCode=24: user tự hủy → CANCELLED; khác → FAILED
         return "24".equals(responseCode) ? PaymentStatus.CANCELLED : PaymentStatus.FAILED;
     }
 
@@ -220,15 +221,14 @@ public class VnpayPaymentService {
                 || !StringUtils.hasText(properties.getTmnCode())
                 || !StringUtils.hasText(properties.getHashSecret())
                 || !StringUtils.hasText(properties.getReturnUrl())) {
-            throw new IllegalStateException("Chưa cấu hình VNPAY. Vui lòng thiết lập VNPAY_TMN_CODE, VNPAY_HASH_SECRET và VNPAY_RETURN_URL.");
+            throw new IllegalStateException(
+                    "Chưa cấu hình VNPAY. Vui lòng thiết lập VNPAY_TMN_CODE, VNPAY_HASH_SECRET và VNPAY_RETURN_URL.");
         }
     }
 
     private boolean verifySignature(Map<String, String> params) {
         String secureHash = params.get("vnp_SecureHash");
-        if (!StringUtils.hasText(secureHash)) {
-            return false;
-        }
+        if (!StringUtils.hasText(secureHash)) return false;
         String signed = hmacSha512(properties.getHashSecret(), buildHashData(params));
         return signed.equalsIgnoreCase(secureHash);
     }
@@ -260,9 +260,7 @@ public class VnpayPaymentService {
             hmac512.init(secretKey);
             byte[] bytes = hmac512.doFinal(data.getBytes(StandardCharsets.UTF_8));
             StringBuilder hash = new StringBuilder(bytes.length * 2);
-            for (byte b : bytes) {
-                hash.append(String.format(Locale.ROOT, "%02x", b));
-            }
+            for (byte b : bytes) hash.append(String.format(Locale.ROOT, "%02x", b));
             return hash.toString();
         } catch (Exception ex) {
             throw new IllegalStateException("Không thể tạo chữ ký VNPAY", ex);
@@ -294,26 +292,18 @@ public class VnpayPaymentService {
 
     private String clientIp(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
-        // Chỉ trust X-Forwarded-For khi kết nối trực tiếp đến từ trusted proxy
-        // (loopback hoặc private network — Docker/nginx nội bộ).
-        // Client bên ngoài không thể giả mạo remoteAddr, chỉ giả mạo header.
         if (isTrustedProxy(remoteAddr)) {
             String forwardedFor = request.getHeader("X-Forwarded-For");
-            if (StringUtils.hasText(forwardedFor)) {
-                return normalizeLocalhostIp(forwardedFor.split(",")[0].trim());
-            }
+            if (StringUtils.hasText(forwardedFor)) return normalizeLocalhostIp(forwardedFor.split(",")[0].trim());
             String realIp = request.getHeader("X-Real-IP");
-            if (StringUtils.hasText(realIp)) {
-                return normalizeLocalhostIp(realIp);
-            }
+            if (StringUtils.hasText(realIp)) return normalizeLocalhostIp(realIp);
         }
         return normalizeLocalhostIp(remoteAddr);
     }
 
     private boolean isTrustedProxy(String ip) {
         if (ip == null) return false;
-        return ip.startsWith("127.")
-                || ip.startsWith("10.")
+        return ip.startsWith("127.") || ip.startsWith("10.")
                 || ip.startsWith("172.16.") || ip.startsWith("172.17.")
                 || ip.startsWith("172.18.") || ip.startsWith("172.19.")
                 || ip.startsWith("192.168.")
@@ -321,16 +311,12 @@ public class VnpayPaymentService {
     }
 
     private String normalizeLocalhostIp(String ip) {
-        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
-            return "127.0.0.1";
-        }
-        return ip;
+        return ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) ? "127.0.0.1" : ip;
     }
 
     private Map<String, String> ipnResponse(String code, String message) {
         return Map.of("RspCode", code, "Message", message);
     }
 
-    private record PaymentUpdateResult(boolean success, String message) {
-    }
+    private record PaymentUpdateResult(boolean success, String message) {}
 }

@@ -1,7 +1,12 @@
 package com.smartshop.demo.service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.math.BigDecimal;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -157,6 +162,27 @@ public class ProductService {
     public List<ProductDTO> getTopSellingProducts(int limit) {
         return productRepository.findTopSellingProducts(PageRequest.of(0, limit))
                 .stream().map(ProductDTO::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTopSellingProductsFiltered(
+            String brand, LocalDate dateFrom, LocalDate dateTo, Long categoryId, int limit) {
+        LocalDateTime from = dateFrom != null ? dateFrom.atStartOfDay()       : null;
+        LocalDateTime to   = dateTo   != null ? dateTo.atTime(23, 59, 59) : null;
+        String brandParam  = (brand != null && !brand.isBlank()) ? brand : null;
+        List<Object[]> rows = productRepository.findTopSellingProductsFiltered(
+                brandParam, from, to, categoryId);
+        return rows.stream().limit(limit).map(r -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id",           r[0]);
+            m.put("name",         r[1]);
+            m.put("price",        r[2]);
+            m.put("image",        r[3]);
+            m.put("factory",      r[4]);
+            m.put("categoryName", r[5]);
+            m.put("sold",         r[6]);
+            return m;
+        }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

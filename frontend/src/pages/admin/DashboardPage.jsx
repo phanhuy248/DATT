@@ -16,6 +16,7 @@ import {
   getDashboardOverview,
   getDashboardRevenueGrouped,
   getDashboardTopCustomers,
+  getDashboardTopProducts,
 } from '../../api/dashboard'
 import {
   buildCategoryRevenue,
@@ -29,6 +30,7 @@ import {
   subtractDays,
 } from '../../utils/dashboardHelpers'
 
+import { BRAND_OPTIONS } from '../../constants/brands'
 import BestSellingProducts from '../../components/admin/dashboard/BestSellingProducts'
 import CategoryRevenueChart from '../../components/admin/dashboard/CategoryRevenueChart'
 import PotentialCustomers from '../../components/admin/dashboard/PotentialCustomers'
@@ -94,11 +96,8 @@ export default function DashboardPage() {
     [categories, category]
   )
 
-  // brand list for filter dropdown
-  const brands = useMemo(
-    () => [...new Set(topProducts.map((p) => p.brand).filter(Boolean))],
-    [topProducts]
-  )
+  // brand list for filter dropdown — same as user-facing ProductsPage
+  const brands = BRAND_OPTIONS
 
   // filtered top-products for the sidebar widget (client-side)
   const visibleTopProducts = useMemo(() => {
@@ -111,10 +110,10 @@ export default function DashboardPage() {
   // donut chart data (all categories, no filter — ratio between them stays meaningful)
   const visibleCategoryRevenue = useMemo(() => buildCategoryRevenue(categoryRows), [categoryRows])
 
-  const categoryTotalLabel = useMemo(
-    () => (overview ? compactMoney(overview.deliveredRevenue) : '0đ'),
-    [overview]
-  )
+  const categoryTotalLabel = useMemo(() => {
+    const sum = categoryRows.reduce((acc, row) => acc + (Number(row.revenue) || 0), 0)
+    return sum > 0 ? compactMoney(sum) : (overview ? compactMoney(overview.deliveredRevenue) : '0đ')
+  }, [categoryRows, overview])
 
   const periodLabel = useMemo(
     () => buildPeriodLabel(preset, dateFrom, dateTo),
@@ -136,13 +135,11 @@ export default function DashboardPage() {
       setOverview(next)
       setStats(buildDashboardStats(next, nextCustomers))
       setRecentOrders(buildRecentOrders(next.recentOrders))
-      setTopProducts(buildTopProducts(next.topSellingProducts))
       setTopCustomers(nextCustomers)
     } else {
       setOverview(null)
       setStats(fallbackStats)
       setRecentOrders(fallbackRecentOrders)
-      setTopProducts(fallbackBestSellingProducts)
       setTopCustomers(fallbackPotentialCustomers)
       toast.warn('Chưa tải được dữ liệu dashboard, đang hiển thị dữ liệu mẫu.')
     }
@@ -151,7 +148,7 @@ export default function DashboardPage() {
 
   const loadChartData = useCallback(async () => {
     setChartLoading(true)
-    const [revenueResult, categoryResult] = await Promise.allSettled([
+    const [revenueResult, categoryResult, topProductsResult] = await Promise.allSettled([
       getDashboardRevenueGrouped({
         dateFrom,
         dateTo,
@@ -159,7 +156,14 @@ export default function DashboardPage() {
         ...(chartCategoryId != null && { categoryId: chartCategoryId }),
         ...(brand && { brand }),
       }),
-      getDashboardCategoryRevenue({ ...(brand && { brand }) }),
+      getDashboardCategoryRevenue({ ...(brand && { brand }), dateFrom, dateTo, ...(chartCategoryId != null && { categoryId: chartCategoryId }) }),
+      getDashboardTopProducts({
+        limit: 5,
+        ...(brand && { brand }),
+        dateFrom,
+        dateTo,
+        ...(chartCategoryId != null && { categoryId: chartCategoryId }),
+      }),
     ])
     setRevenueData(
       revenueResult.status === 'fulfilled'
@@ -170,6 +174,11 @@ export default function DashboardPage() {
       categoryResult.status === 'fulfilled'
         ? categoryResult.value || []
         : fallbackCategoryRevenue.map((item) => ({ category: item.name, revenue: item.value }))
+    )
+    setTopProducts(
+      topProductsResult.status === 'fulfilled'
+        ? buildTopProducts(topProductsResult.value || [])
+        : fallbackBestSellingProducts
     )
     setChartLoading(false)
   }, [dateFrom, dateTo, groupBy, chartCategoryId, brand])
@@ -226,12 +235,17 @@ export default function DashboardPage() {
 
     // Sheet 3: Doanh thu theo danh mục
     if (categoryRows.length > 0) {
-      const catRows = categoryRows.map((r) => ({
-        'Danh mục': r.category,
-        'Doanh thu (đồng)': r.revenue,
-      }))
+      const catTotal = categoryRows.reduce((s, r) => s + (Number(r.revenue) || 0), 0)
+      const catRows = [
+        ...categoryRows.map((r) => ({
+          'Danh mục': r.category,
+          'Doanh thu (đồng)': Number(r.revenue) || 0,
+          'Tỷ lệ (%)': catTotal > 0 ? +((Number(r.revenue) / catTotal) * 100).toFixed(1) : 0,
+        })),
+        { 'Danh mục': 'TỔNG', 'Doanh thu (đồng)': catTotal, 'Tỷ lệ (%)': 100 },
+      ]
       const ws3 = XLSX.utils.json_to_sheet(catRows)
-      ws3['!cols'] = [{ wch: 22 }, { wch: 20 }]
+      ws3['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 14 }]
       XLSX.utils.book_append_sheet(wb, ws3, 'Theo danh mục')
     }
 
@@ -275,7 +289,13 @@ export default function DashboardPage() {
 
       {/* KPI stat cards */}
       <section className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-6">
-        {stats.map((stat) => <StatCard key={stat.id} stat={stat} />)}
+        {stats.map((stat) => {
+          const onClick =
+            stat.id === 'products' ? () => navigate('/admin/products', { state: { applyStatus: 'Sắp hết hàng' } }) :
+            stat.id === 'pending'  ? () => navigate('/admin/orders',   { state: { applyStatus: 'PENDING' } }) :
+            undefined
+          return <StatCard key={stat.id} stat={stat} onClick={onClick} />
+        })}
       </section>
 
       {/* Chart filters */}
@@ -310,11 +330,12 @@ export default function DashboardPage() {
         <RecentOrdersTable
           orders={recentOrders}
           onViewAll={() => navigate('/admin/orders')}
-          onViewOrder={() => navigate('/admin/orders')}
+          onViewOrder={(order) => navigate('/admin/orders', { state: { expandOrderId: order.rawId } })}
         />
         <BestSellingProducts
           products={visibleTopProducts}
           onDetail={() => navigate('/admin/products')}
+          onProductClick={(product) => navigate('/admin/products', { state: { openProductId: product.id } })}
         />
       </section>
 

@@ -7,11 +7,13 @@ import Button from '../../components/ui/Button'
 import SectionHeader from '../../components/ui/SectionHeader'
 
 const statusFilters = [
-  { value: 'ALL', label: 'Tất cả', statuses: [] },
-  { value: 'PROCESSING', label: 'Đang chuẩn bị hàng', statuses: ['PENDING', 'CONFIRMED', 'PROCESSING'] },
-  { value: 'SHIPPING', label: 'Đang giao hàng', statuses: ['SHIPPING'] },
-  { value: 'COMPLETED', label: 'Hoàn thành', statuses: ['COMPLETED'] },
-  { value: 'CANCELLED', label: 'Đã hủy', statuses: ['CANCELLED'] },
+  { value: 'ALL',        label: 'Tất cả',             statuses: [] },
+  { value: 'PENDING',    label: 'Chờ xác nhận',        statuses: ['PENDING'] },
+  { value: 'CONFIRMED',       label: 'Đã xác nhận',           statuses: ['CONFIRMED'] },
+  { value: 'PROCESSING',      label: 'Đang chuẩn bị hàng',   statuses: ['PROCESSING'] },
+  { value: 'SHIPPING',        label: 'Đang giao hàng',        statuses: ['SHIPPING'] },
+  { value: 'COMPLETED',       label: 'Hoàn thành',            statuses: ['COMPLETED'] },
+  { value: 'CANCELLED',       label: 'Đã hủy',                statuses: ['CANCELLED'] },
 ]
 
 const sortOptions = [
@@ -38,11 +40,7 @@ export default function OrderHistoryPage() {
   const [expandedOrder, setExpandedOrder] = useState(null)
   const [cancellingOrderId, setCancellingOrderId] = useState(null)
   const [cancelError, setCancelError] = useState('')
-  const [draftFilters, setDraftFilters] = useState(() => ({
-    ...defaultFilters,
-    query: searchParams.get('keyword') || '',
-  }))
-  const [appliedFilters, setAppliedFilters] = useState(() => ({
+  const [filters, setFilters] = useState(() => ({
     ...defaultFilters,
     query: searchParams.get('keyword') || '',
   }))
@@ -71,11 +69,10 @@ export default function OrderHistoryPage() {
 
   useEffect(() => {
     const keyword = searchParams.get('keyword') || ''
-    setDraftFilters((current) => ({ ...current, query: keyword }))
-    setAppliedFilters((current) => ({ ...current, query: keyword }))
+    setFilters((current) => ({ ...current, query: keyword }))
   }, [searchParams])
 
-  const filteredOrders = useMemo(() => applyFilters(orders, appliedFilters), [orders, appliedFilters])
+  const filteredOrders = useMemo(() => applyFilters(orders, filters), [orders, filters])
 
   async function handleCancelOrder(orderId) {
     setCancellingOrderId(orderId)
@@ -90,21 +87,13 @@ export default function OrderHistoryPage() {
     }
   }
 
-  const applyDraftFilters = () => {
-    setAppliedFilters(draftFilters)
-    setDrawerOpen(false)
-  }
-
-  const resetFilters = () => {
-    setDraftFilters(defaultFilters)
-    setAppliedFilters(defaultFilters)
-  }
+  const resetFilters = () => setFilters(defaultFilters)
 
   return (
     <div className="bg-shop-bg">
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-6">
         <aside className="hidden lg:block">
-          <OrderFilter filters={draftFilters} onApply={applyDraftFilters} onChange={setDraftFilters} onReset={resetFilters} />
+          <OrderFilter filters={filters} onChange={setFilters} onReset={resetFilters} />
         </aside>
 
         <main className="min-w-0">
@@ -153,7 +142,7 @@ export default function OrderHistoryPage() {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <OrderFilter filters={draftFilters} onApply={applyDraftFilters} onChange={setDraftFilters} onReset={resetFilters} />
+            <OrderFilter filters={filters} onChange={(next) => { setFilters(next); setDrawerOpen(false) }} onReset={resetFilters} />
           </aside>
         </div>
       )}
@@ -161,9 +150,9 @@ export default function OrderHistoryPage() {
   )
 }
 
-function OrderFilter({ filters, onChange, onApply, onReset }) {
+function OrderFilter({ filters, onChange, onReset }) {
   return (
-    <div className="sticky top-24 rounded-2xl border border-shop-border bg-shop-surface p-5 shadow-sm">
+    <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-shop-border bg-shop-surface p-5 shadow-sm">
       <div className="mb-5 flex items-center gap-2">
         <SlidersHorizontal className="h-5 w-5 text-shop-red" />
         <h2 className="text-base font-bold text-shop-text">Bộ lọc đơn hàng</h2>
@@ -221,9 +210,6 @@ function OrderFilter({ filters, onChange, onApply, onReset }) {
           </select>
         </label>
 
-        <Button type="button" className="w-full" onClick={onApply}>
-          Áp dụng bộ lọc
-        </Button>
         <Button type="button" variant="secondary" className="w-full" onClick={onReset}>
           Xóa bộ lọc
         </Button>

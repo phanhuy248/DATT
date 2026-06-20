@@ -3,7 +3,9 @@ package com.smartshop.demo.dto.cart;
 import com.smartshop.demo.domain.CartItem;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class CartDTO {
@@ -12,10 +14,16 @@ public class CartDTO {
     private int totalItems;
 
     public static CartDTO from(List<CartItem> cartItems) {
+        return from(cartItems, Collections.emptyMap());
+    }
+
+    public static CartDTO from(List<CartItem> cartItems, Map<Long, BigDecimal> flashSalePrices) {
         CartDTO dto = new CartDTO();
-        dto.items = cartItems.stream().map(CartItemDTO::from).collect(Collectors.toList());
-        dto.totalPrice = cartItems.stream()
-                .map(ci -> ci.getProduct().getPrice().multiply(BigDecimal.valueOf(ci.getQuantity())))
+        dto.items = cartItems.stream()
+                .map(ci -> CartItemDTO.from(ci, flashSalePrices.get(ci.getProduct().getId())))
+                .collect(Collectors.toList());
+        dto.totalPrice = dto.items.stream()
+                .map(CartItemDTO::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         dto.totalItems = cartItems.stream().mapToInt(CartItem::getQuantity).sum();
         return dto;
@@ -31,18 +39,21 @@ public class CartDTO {
         private String productName;
         private String productImage;
         private BigDecimal productPrice;
+        private BigDecimal salePrice;
         private int quantity;
         private BigDecimal subtotal;
 
-        public static CartItemDTO from(CartItem ci) {
+        public static CartItemDTO from(CartItem ci, BigDecimal flashPrice) {
             CartItemDTO d = new CartItemDTO();
             d.cartItemId = ci.getId();
             d.productId = ci.getProduct().getId();
             d.productName = ci.getProduct().getName();
             d.productImage = ci.getProduct().getImage();
             d.productPrice = ci.getProduct().getPrice();
+            d.salePrice = flashPrice;
             d.quantity = ci.getQuantity();
-            d.subtotal = ci.getProduct().getPrice().multiply(BigDecimal.valueOf(ci.getQuantity()));
+            BigDecimal effectivePrice = flashPrice != null ? flashPrice : ci.getProduct().getPrice();
+            d.subtotal = effectivePrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
             return d;
         }
 
@@ -51,6 +62,7 @@ public class CartDTO {
         public String getProductName() { return productName; }
         public String getProductImage() { return productImage; }
         public BigDecimal getProductPrice() { return productPrice; }
+        public BigDecimal getSalePrice() { return salePrice; }
         public int getQuantity() { return quantity; }
         public BigDecimal getSubtotal() { return subtotal; }
     }

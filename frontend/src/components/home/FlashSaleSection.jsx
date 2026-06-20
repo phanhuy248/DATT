@@ -26,6 +26,35 @@ function useCountdown(targetIso) {
 
 function pad(n) { return String(n).padStart(2, '0') }
 
+function FlashSaleItemCard({ item }) {
+  const countdown = useCountdown(item.endAt)
+  return (
+    <div className="relative">
+      {countdown && (
+        <div className="absolute top-2 right-2 z-10 pointer-events-none flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-1 shadow-md">
+          <span className="text-[10px] font-bold text-amber-900 leading-none">⏱</span>
+          <span className="text-[11px] font-black text-amber-900 leading-none tabular-nums">
+            {pad(countdown.h)}:{pad(countdown.m)}:{pad(countdown.s)}
+          </span>
+        </div>
+      )}
+      <ProductCard
+        product={{
+          id: item.productId,
+          name: item.productName,
+          image: item.productImage,
+          price: item.salePrice,
+          originalPrice: item.originalPrice,
+          discountPercent: item.discountPercent,
+          quantity: item.remaining === null ? 999 : item.remaining,
+          sold: item.soldCount,
+        }}
+        badge="Sale"
+      />
+    </div>
+  )
+}
+
 /** fallbackProducts: sản phẩm mới nhất hiển thị khi chưa có flash sale thật. */
 export default function FlashSaleSection({ fallbackProducts = [] }) {
   const [items, setItems] = useState([])
@@ -41,11 +70,6 @@ export default function FlashSaleSection({ fallbackProducts = [] }) {
   }, [])
 
   const useRealSale = loaded && items.length > 0
-  const earliestEnd = useRealSale
-    ? items.reduce((min, it) => (it.endAt < min ? it.endAt : min), items[0].endAt)
-    : null
-  const countdown = useCountdown(earliestEnd)
-
   const displayItems = useRealSale ? [] : fallbackProducts
 
   if (!loaded && fallbackProducts.length === 0) return null
@@ -64,25 +88,13 @@ export default function FlashSaleSection({ fallbackProducts = [] }) {
     <section className="w-full rounded-3xl border-2 border-shop-red bg-shop-red p-5 shadow-sm sm:p-6 lg:p-7">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4">
-        {/* Trái: icon + tiêu đề + đếm ngược */}
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-shop-red">
             <Zap className="h-6 w-6 fill-current" />
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <h2 className="whitespace-nowrap text-xl font-black text-white">Flash Sale</h2>
-            {countdown ? (
-              <p className="whitespace-nowrap text-sm font-medium text-white/90">
-                Kết thúc sau:&nbsp;
-                <span className="font-black">{pad(countdown.h)}:{pad(countdown.m)}:{pad(countdown.s)}</span>
-              </p>
-            ) : (
-              <p className="text-sm font-medium text-white/85">Ưu đãi hấp dẫn tại SMARTSHOP</p>
-            )}
-          </div>
+          <h2 className="whitespace-nowrap text-xl font-black text-white">Flash Sale</h2>
         </div>
 
-        {/* Phải: nút Xem tất cả — shrink-0 + whitespace-nowrap để không bị cắt chữ */}
         <Link
           to="/products?sortBy=newest"
           className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-white px-5 text-sm font-bold text-shop-red transition hover:bg-shop-softBlue"
@@ -95,19 +107,7 @@ export default function FlashSaleSection({ fallbackProducts = [] }) {
       <div className={`mt-5 grid gap-4 ${gridColumns}`}>
         {useRealSale
           ? activeList.map(item => (
-              <ProductCard
-                key={item.id}
-                product={{
-                  id: item.productId,
-                  name: item.productName,
-                  image: item.productImage,
-                  price: item.salePrice,
-                  originalPrice: item.originalPrice,
-                  discountPercent: item.discountPercent,
-                  quantity: item.remaining === null ? 999 : item.remaining,
-                }}
-                badge="Sale"
-              />
+              <FlashSaleItemCard key={item.id} item={item} />
             ))
           : activeList.map((product, index) => (
               <ProductCard

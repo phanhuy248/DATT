@@ -15,13 +15,26 @@ export const getDashboardRevenueGrouped = ({ dateFrom, dateTo, groupBy, category
     },
   }).then(r => r.data.data)
 
-export const getDashboardTopProducts = (limit = 5) =>
-  api.get('/admin/dashboard/top-products', { params: { limit } }).then(r => r.data.data)
+export const getDashboardTopProducts = ({ limit = 5, brand, dateFrom, dateTo, categoryId } = {}) =>
+  api.get('/admin/dashboard/top-products', {
+    params: {
+      limit,
+      ...(brand && brand !== ''   && { brand }),
+      ...(dateFrom               && { dateFrom }),
+      ...(dateTo                 && { dateTo }),
+      ...(categoryId != null     && { categoryId }),
+    },
+  }).then(r => r.data.data)
 
 export const getDashboardTopCustomers = (limit = 5) =>
   api.get('/admin/dashboard/top-customers', { params: { limit } }).then(r => r.data.data)
 
-export const getDashboardCategoryRevenue = ({ brand } = {}) =>
+export const getDashboardCategoryRevenue = ({ brand, dateFrom, dateTo, categoryId } = {}) =>
   api.get('/admin/dashboard/category-revenue', {
-    params: { ...(brand && brand !== '' && { brand }) },
+    params: {
+      ...(brand && brand !== ''   && { brand }),
+      ...(dateFrom               && { dateFrom }),
+      ...(dateTo                 && { dateTo }),
+      ...(categoryId != null     && { categoryId }),
+    },
   }).then(r => r.data.data)

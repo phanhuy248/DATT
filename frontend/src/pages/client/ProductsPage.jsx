@@ -6,6 +6,7 @@ import { getProducts } from '../../api/products'
 import ProductCard from '../../components/product/ProductCard'
 import Button from '../../components/ui/Button'
 import SectionHeader from '../../components/ui/SectionHeader'
+import { BRAND_OPTIONS } from '../../constants/brands'
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Mới nhất' },
@@ -13,8 +14,6 @@ const SORT_OPTIONS = [
   { value: 'price_asc', label: 'Giá tăng dần' },
   { value: 'price_desc', label: 'Giá giảm dần' },
 ]
-
-const BRAND_OPTIONS = ['Apple', 'Samsung', 'ASUS', 'Sony', 'Lenovo', 'HP', 'Dell', 'Acer', 'MSI', 'Realme', 'Vivo', 'Xiaomi', 'Oppo', 'Huawei']
 
 
 export default function ProductsPage() {
@@ -51,7 +50,7 @@ export default function ProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
-      const params = { sortBy, page, size: 12 }
+      const params = { sortBy, page, size: 15 }
       if (keyword) params.keyword = keyword
       if (selectedCategoryId) params.categoryId = selectedCategoryId
       else if (categoryName) params.categoryName = categoryName

@@ -5,6 +5,7 @@ import com.smartshop.demo.dto.order.OrderItemRequest;
 import com.smartshop.demo.dto.order.PlaceOrderRequest;
 import com.smartshop.demo.exception.ResourceNotFoundException;
 import com.smartshop.demo.repository.*;
+import com.smartshop.demo.event.OrderConfirmationEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +35,10 @@ class OrderServiceTest {
     @Mock
     InventoryTransactionRepository inventoryTransactionRepository;
     @Mock CouponService couponService;
-    @Mock MailService mailService;
+    @Mock org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    @Mock org.springframework.context.ApplicationEventPublisher eventPublisher;
+    @Mock FlashSaleItemRepository flashSaleItemRepository;
+    @Mock CartService cartService;
 
     @InjectMocks OrderService orderService;
 
@@ -63,7 +67,8 @@ class OrderServiceTest {
         PlaceOrderRequest req = buildRequest(10L, 2, "COD", null);
 
         when(productRepository.findAllByIdForUpdate(List.of(10L))).thenReturn(List.of(product));
-        when(couponService.calculateDiscount(null, BigDecimal.valueOf(30_000_000))).thenReturn(BigDecimal.ZERO);
+        when(flashSaleItemRepository.findActiveByProductIdsForUpdate(anyList(), any())).thenReturn(List.of());
+        when(couponService.calculateDiscount(any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
         Order savedOrder = new Order();
         savedOrder.setId(99L);
@@ -72,7 +77,6 @@ class OrderServiceTest {
         when(productRepository.save(any())).thenReturn(product);
         when(inventoryTransactionRepository.save(any())).thenReturn(new InventoryTransaction());
         when(orderRepository.findWithDetailsById(99L)).thenReturn(Optional.of(savedOrder));
-        doNothing().when(mailService).sendOrderConfirmation(any());
 
         Order result = orderService.placeOrder(user, req);
 
@@ -81,7 +85,7 @@ class OrderServiceTest {
         assertThat(product.getSold()).isEqualTo(2);
         verify(orderRepository).save(any(Order.class));
         verify(orderDetailRepository).save(any(OrderDetail.class));
-        verify(mailService).sendOrderConfirmation(savedOrder);
+        verify(eventPublisher).publishEvent(any(OrderConfirmationEvent.class));
     }
 
     @Test
@@ -89,6 +93,7 @@ class OrderServiceTest {
         PlaceOrderRequest req = buildRequest(10L, 10, "COD", null); // yêu cầu 10, chỉ có 5
 
         when(productRepository.findAllByIdForUpdate(List.of(10L))).thenReturn(List.of(product));
+        when(flashSaleItemRepository.findActiveByProductIdsForUpdate(anyList(), any())).thenReturn(List.of());
 
         assertThatThrownBy(() -> orderService.placeOrder(user, req))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -100,6 +105,7 @@ class OrderServiceTest {
         PlaceOrderRequest req = buildRequest(999L, 1, "COD", null);
 
         when(productRepository.findAllByIdForUpdate(List.of(999L))).thenReturn(List.of());
+        when(flashSaleItemRepository.findActiveByProductIdsForUpdate(anyList(), any())).thenReturn(List.of());
 
         assertThatThrownBy(() -> orderService.placeOrder(user, req))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -110,7 +116,8 @@ class OrderServiceTest {
         PlaceOrderRequest req = buildRequest(10L, 1, "VNPAY", null);
 
         when(productRepository.findAllByIdForUpdate(List.of(10L))).thenReturn(List.of(product));
-        when(couponService.calculateDiscount(any(), any())).thenReturn(BigDecimal.ZERO);
+        when(flashSaleItemRepository.findActiveByProductIdsForUpdate(anyList(), any())).thenReturn(List.of());
+        when(couponService.calculateDiscount(any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
         Order savedOrder = new Order();
         savedOrder.setId(5L);
@@ -125,7 +132,6 @@ class OrderServiceTest {
         when(productRepository.save(any())).thenReturn(product);
         when(inventoryTransactionRepository.save(any())).thenReturn(new InventoryTransaction());
         when(orderRepository.findWithDetailsById(5L)).thenReturn(Optional.of(savedOrder));
-        doNothing().when(mailService).sendOrderConfirmation(any());
 
         orderService.placeOrder(user, req);
         // Assertion đã nằm trong answer lambda ở trên
@@ -157,7 +163,7 @@ class OrderServiceTest {
         Order savedOrder = new Order();
         savedOrder.setId(2L);
         savedOrder.setStatus(OrderStatus.COMPLETED);
-        savedOrder.setPaymentStatus(PaymentStatus.PAID);
+        savedOrder.setPaymentStatus(PaymentStatus.SUCCESS);
 
         when(orderRepository.findById(2L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any())).thenReturn(savedOrder);
@@ -166,7 +172,7 @@ class OrderServiceTest {
 
         Order result = orderService.updateStatus(2L, "COMPLETED", user, null);
 
-        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.SUCCESS);
     }
 
     @Test
@@ -174,7 +180,8 @@ class OrderServiceTest {
         PlaceOrderRequest req = buildRequest(10L, 1, "BANK_TRANSFER", null);
 
         when(productRepository.findAllByIdForUpdate(List.of(10L))).thenReturn(List.of(product));
-        when(couponService.calculateDiscount(any(), any())).thenReturn(BigDecimal.ZERO);
+        when(flashSaleItemRepository.findActiveByProductIdsForUpdate(anyList(), any())).thenReturn(List.of());
+        when(couponService.calculateDiscount(any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
         Order savedOrder = new Order();
         savedOrder.setId(6L);
@@ -188,7 +195,6 @@ class OrderServiceTest {
         when(productRepository.save(any())).thenReturn(product);
         when(inventoryTransactionRepository.save(any())).thenReturn(new InventoryTransaction());
         when(orderRepository.findWithDetailsById(6L)).thenReturn(Optional.of(savedOrder));
-        doNothing().when(mailService).sendOrderConfirmation(any());
 
         orderService.placeOrder(user, req);
     }
@@ -205,7 +211,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.updateStatus(7L, "CONFIRMED", user, null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("thanh toan thanh cong");
+                .hasMessageContaining("xác nhận thanh toán");
     }
 
     @Test
@@ -230,14 +236,14 @@ class OrderServiceTest {
         when(orderRepository.findById(3L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any())).thenReturn(order);
         when(orderRepository.findWithDetailsById(3L)).thenReturn(Optional.of(orderWithDetails));
-        when(productRepository.save(any())).thenReturn(product);
+        when(productRepository.findAllByIdForUpdate(List.of(10L))).thenReturn(List.of(product));
         when(inventoryTransactionRepository.save(any())).thenReturn(new InventoryTransaction());
         when(orderStatusHistoryRepository.save(any())).thenReturn(new OrderStatusHistory());
 
         orderService.updateStatus(3L, "CANCELLED", user, "hết hàng");
 
-        // Tồn kho phải được hoàn lại: 5 + 3 = 8
-        assertThat(product.getQuantity()).isEqualTo(8);
+        // Phải gọi updateStockById để hoàn lại kho: 5 + 3 = 8
+        verify(productRepository).updateStockById(product.getId(), 8L, 0L);
     }
 
     @Test

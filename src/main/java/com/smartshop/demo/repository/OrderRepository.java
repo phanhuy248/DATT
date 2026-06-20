@@ -23,10 +23,12 @@ import com.smartshop.demo.domain.User;
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
-     * Tải kèm orderDetails và product trong một query để tránh LazyInitializationException.
+     * Tải kèm orderDetails, product, và user trong một query để tránh LazyInitializationException.
      * Dùng khi open-in-view=false (như trong application.properties).
+     * EntityGraph FETCH type làm cho user (không khai báo) trở thành LAZY,
+     * nên phải khai báo rõ ràng để tránh lỗi khi OrderDTO.from() truy cập user ngoài transaction.
      */
-    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
+    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product", "user"})
     Optional<Order> findWithDetailsById(Long id);
 
     @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
@@ -40,17 +42,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * Batch-load details cho một tập Order IDs vào 1st-level cache.
      * Gọi trước khi map sang DTO để tránh N+1 trên trang phân trang admin.
      */
-    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
+    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product", "user"})
     @Query("SELECT DISTINCT o FROM Order o WHERE o.id IN :ids")
     List<Order> findWithDetailsByIds(@Param("ids") List<Long> ids);
 
-    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
+    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product", "user"})
     @Query("SELECT o FROM Order o ORDER BY o.createdDate DESC")
     List<Order> findAllByOrderByCreatedDateDesc();
 
     @Query("""
             SELECT o FROM Order o
             WHERE (:status IS NULL OR o.status = :status)
+            AND (:userId IS NULL OR o.user.id = :userId)
             AND (:search IS NULL
                  OR LOWER(o.receiverName) LIKE LOWER(CONCAT('%', :search, '%'))
                  OR o.receiverPhone LIKE CONCAT('%', :search, '%'))
@@ -59,6 +62,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             """)
     Page<Order> findWithFilters(
             @Param("status")   OrderStatus status,
+            @Param("userId")   Long userId,
             @Param("search")   String search,
             @Param("dateFrom") java.time.LocalDateTime dateFrom,
             @Param("dateTo")   java.time.LocalDateTime dateTo,
@@ -67,6 +71,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
     List<Order> findByPaymentMethodAndPaymentStatusOrderByCreatedDateDesc(PaymentMethod paymentMethod, PaymentStatus paymentStatus);
 
+    /** Đơn PENDING_PAYMENT (VNPAY hoặc BANK_TRANSFER) quá hạn 5 phút — dùng cho auto-cancel scheduler. */
+    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
+    @Query("""
+            SELECT o FROM Order o
+            WHERE o.status = com.smartshop.demo.domain.OrderStatus.PENDING_PAYMENT
+              AND o.paymentMethod IN :methods
+              AND o.createdDate < :cutoff
+            """)
+    List<Order> findExpiredPendingPaymentOrders(
+            @Param("methods") List<PaymentMethod> methods,
+            @Param("cutoff") LocalDateTime cutoff);
+
+    /** Kiểm tra user đã có đơn PENDING_PAYMENT chưa — tránh tạo duplicate. */
+    @Query("""
+            SELECT COUNT(o) > 0 FROM Order o
+            WHERE o.user = :user
+              AND o.status = com.smartshop.demo.domain.OrderStatus.PENDING_PAYMENT
+            """)
+    boolean existsPendingPaymentByUser(@Param("user") User user);
+
+    /** Legacy: giữ lại để tương thích với code cũ nếu còn tham chiếu. */
     @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
     @Query("""
             SELECT o FROM Order o
@@ -75,7 +100,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
               AND o.paymentStatus = :paymentStatus
               AND o.createdDate < :cutoff
             """)
-    List<Order> findExpiredPendingPaymentOrders(
+    List<Order> findExpiredPendingPaymentOrdersLegacy(
             @Param("paymentMethod") PaymentMethod paymentMethod,
             @Param("paymentStatus") PaymentStatus paymentStatus,
             @Param("cutoff") LocalDateTime cutoff);
@@ -110,7 +135,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             """)
     BigDecimal getDeliveredRevenue();
 
-    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product"})
+    @EntityGraph(attributePaths = {"orderDetails", "orderDetails.product", "user"})
     @Query("SELECT o FROM Order o ORDER BY o.createdDate DESC")
     List<Order> findRecentOrders(Pageable pageable);
 
@@ -122,6 +147,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
               AND od.order.status = com.smartshop.demo.domain.OrderStatus.COMPLETED
             """)
     boolean existsDeliveredOrderContainingProduct(User user, long productId);
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.createdDate >= :from AND o.createdDate <= :to")
+    long countCreatedBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     // ── Aggregate queries cho Dashboard (thay thế findAll() + in-memory stream) ──
 
@@ -205,14 +233,40 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                    COALESCE(SUM(od.price * od.quantity), 0) AS revenue
             FROM categories c
             LEFT JOIN products p ON p.category_id = c.id
+                AND (p.deleted = false OR p.deleted IS NULL)
                 AND LOWER(p.factory) LIKE LOWER(CONCAT('%', :brand, '%'))
             LEFT JOIN order_details od ON od.product_id = p.id
             LEFT JOIN orders o ON o.id = od.order_id AND o.status = 'COMPLETED'
             WHERE c.deleted = false
+              AND (od.id IS NULL OR o.id IS NOT NULL)
             GROUP BY c.id, c.name
             ORDER BY revenue DESC
             """)
     List<Object[]> findCategoryRevenueByBrand(@Param("brand") String brand);
+
+    @Query(nativeQuery = true, value = """
+            SELECT c.name AS category,
+                   COALESCE(SUM(od.price * od.quantity), 0) AS revenue
+            FROM categories c
+            LEFT JOIN products p ON p.category_id = c.id
+                AND (p.deleted = false OR p.deleted IS NULL)
+                AND (:brand IS NULL OR LOWER(p.factory) LIKE LOWER(CONCAT('%', :brand, '%')))
+            LEFT JOIN order_details od ON od.product_id = p.id
+            LEFT JOIN orders o ON o.id = od.order_id
+                AND o.status = 'COMPLETED'
+                AND (:dateFrom IS NULL OR o.created_date >= :dateFrom)
+                AND (:dateTo   IS NULL OR o.created_date <= :dateTo)
+            WHERE c.deleted = false
+              AND (:categoryId IS NULL OR c.id = :categoryId)
+              AND (od.id IS NULL OR o.id IS NOT NULL)
+            GROUP BY c.id, c.name
+            ORDER BY revenue DESC
+            """)
+    List<Object[]> findCategoryRevenueFiltered(
+            @Param("brand")       String brand,
+            @Param("dateFrom")    LocalDateTime dateFrom,
+            @Param("dateTo")      LocalDateTime dateTo,
+            @Param("categoryId")  Long categoryId);
 
     @Query("""
             SELECT o.user.id, o.user.email, o.user.fullName, COALESCE(SUM(o.totalPrice), 0), COUNT(o.id)
@@ -229,9 +283,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                    COALESCE(SUM(od.price * od.quantity), 0) AS revenue
             FROM categories c
             LEFT JOIN products p ON p.category_id = c.id
+                AND (p.deleted = false OR p.deleted IS NULL)
             LEFT JOIN order_details od ON od.product_id = p.id
             LEFT JOIN orders o ON o.id = od.order_id AND o.status = 'COMPLETED'
             WHERE c.deleted = false
+              AND (od.id IS NULL OR o.id IS NOT NULL)
             GROUP BY c.id, c.name
             ORDER BY revenue DESC
             """)

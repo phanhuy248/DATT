@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Pencil, Plus, Search, Trash2, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Pencil, Plus, Search, ShoppingBag, Trash2, User } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { createUser, deleteUser, getAllUsers, updateUser } from '../../api/users'
 import { useAuth } from '../../context/AuthContext'
@@ -20,6 +21,7 @@ import {
 
 export default function UsersPage() {
   const { user: me } = useAuth()
+  const navigate = useNavigate()
   const [users,    setUsers]   = useState([])
   const [loading,  setLoading] = useState(true)
   const [error,    setError]   = useState('')
@@ -141,6 +143,18 @@ export default function UsersPage() {
       headerClassName: 'w-24',
       render: (row) => (
         <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate('/admin/orders', { state: { filterUserId: row.id, filterUserName: row.fullName, filterUserEmail: row.email } })
+            }}
+            className="text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+            title="Xem đơn hàng"
+          >
+            <ShoppingBag size={15} />
+          </Button>
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row) }} title="Chỉnh sửa">
             <Pencil size={15} />
           </Button>

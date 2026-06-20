@@ -6,9 +6,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -26,6 +28,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String RATE_LIMIT_MESSAGE = "Ban thao tac qua nhanh, vui long thu lai sau.";
 
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final List<Rule> rules = List.of(
             new Rule("/api/auth/login", 5, Duration.ofMinutes(1), KeyMode.IP, "login"),
@@ -36,8 +39,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             new Rule("/api/chat", 10, Duration.ofMinutes(1), KeyMode.USER_OR_IP, "chat")
     );
 
-    public RateLimitFilter(ObjectMapper objectMapper) {
+    public RateLimitFilter(ObjectMapper objectMapper, StringRedisTemplate redisTemplate) {
         this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -121,6 +125,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean tryConsume(String key, int maxRequests, Duration window) {
+        try {
+            String redisKey = "ratelimit:" + key;
+            Long currentCount = redisTemplate.opsForValue().increment(redisKey);
+            if (currentCount != null && currentCount == 1) {
+                redisTemplate.expire(redisKey, window);
+            }
+            return currentCount != null && currentCount <= maxRequests;
+        } catch (Exception e) {
+            logger.warn(String.format("Redis rate limiter failed for key %s, falling back to local memory: %s", key, e.getMessage()));
+            return tryConsumeLocal(key, maxRequests, window);
+        }
+    }
+
+    private boolean tryConsumeLocal(String key, int maxRequests, Duration window) {
         long now = System.currentTimeMillis();
         Bucket bucket = buckets.compute(key, (ignored, current) -> {
             if (current == null || current.resetAt <= now) {
@@ -130,6 +148,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return current;
         });
         return bucket.count <= maxRequests;
+    }
+
+    @Scheduled(fixedDelay = 300000) // Chạy mỗi 5 phút
+    public void cleanExpiredLocalBuckets() {
+        long now = System.currentTimeMillis();
+        int beforeSize = buckets.size();
+        buckets.entrySet().removeIf(entry -> entry.getValue().resetAt <= now);
+        int afterSize = buckets.size();
+        if (beforeSize != afterSize && logger.isDebugEnabled()) {
+            logger.debug(String.format("Cleaned up %d expired rate limit local buckets. Remaining: %d", beforeSize - afterSize, afterSize));
+        }
     }
 
     private void writeRateLimitResponse(HttpServletResponse response) throws IOException {

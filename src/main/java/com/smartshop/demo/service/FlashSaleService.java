@@ -32,7 +32,10 @@ public class FlashSaleService {
     @Transactional(readOnly = true)
     public List<FlashSaleDTO> getActiveItems() {
         return flashSaleItemRepository.findActiveItems(LocalDateTime.now())
-                .stream().map(FlashSaleDTO::from).toList();
+                .stream()
+                // Lọc bỏ flash sale mà salePrice >= giá hiện tại (stale data do admin đổi giá sản phẩm)
+                .filter(f -> f.getSalePrice().compareTo(f.getProduct().getPrice()) < 0)
+                .map(FlashSaleDTO::from).toList();
     }
 
     @Transactional(readOnly = true)

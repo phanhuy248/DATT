@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import {
   Calendar,
@@ -10,6 +11,7 @@ import {
   Search,
   Truck,
   User,
+  X,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { getAllOrders, updateOrderStatus } from '../../api/orders'
@@ -42,10 +44,18 @@ const PAGE_SIZE = 10
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const expandHandled = useRef(false)
+  const filterHandled = useRef(false)
+
   const [data,         setData]         = useState({ content: [], totalPages: 0, totalElements: 0 })
   const [loading,      setLoading]      = useState(true)
   const [page,         setPage]         = useState(0)
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterUserId, setFilterUserId] = useState(location.state?.filterUserId ?? null)
+  const [filterUserName, setFilterUserName] = useState(location.state?.filterUserName ?? '')
+  const [filterUserEmail, setFilterUserEmail] = useState(location.state?.filterUserEmail ?? '')
   const [searchInput,  setSearchInput]  = useState('')
   const [search,       setSearch]       = useState('')
   const [dateFrom,     setDateFrom]     = useState('')
@@ -64,15 +74,46 @@ export default function OrdersPage() {
     const params = {
       page,
       size: PAGE_SIZE,
-      ...(filterStatus && { status: filterStatus }),
-      ...(search       && { search }),
-      ...(dateFrom     && { dateFrom }),
-      ...(dateTo       && { dateTo }),
+      ...(filterStatus  && { status: filterStatus }),
+      ...(filterUserId  && { userId: filterUserId }),
+      ...(search        && { search }),
+      ...(dateFrom      && { dateFrom }),
+      ...(dateTo        && { dateTo }),
     }
     getAllOrders(params).then(setData).finally(() => setLoading(false))
-  }, [page, filterStatus, search, dateFrom, dateTo])
+  }, [page, filterStatus, filterUserId, search, dateFrom, dateTo])
+
+  const clearUserFilter = () => {
+    setFilterUserId(null)
+    setFilterUserName('')
+    setFilterUserEmail('')
+    setPage(0)
+    navigate('/admin/orders', { replace: true, state: {} })
+  }
 
   useEffect(() => { load() }, [load])
+
+  // Auto-expand order navigated from dashboard
+  useEffect(() => {
+    const expandId = location.state?.expandOrderId
+    if (!expandId || expandHandled.current || loading) return
+    const orders = data.content || []
+    if (orders.length === 0) return
+    const found = orders.find((o) => o.id === expandId)
+    if (found) {
+      setExpanded(expandId)
+      expandHandled.current = true
+    }
+  }, [data.content, loading, location.state])
+
+  // Auto-apply status filter navigated from dashboard stat card
+  useEffect(() => {
+    const applyStatus = location.state?.applyStatus
+    if (!applyStatus || filterHandled.current) return
+    filterHandled.current = true
+    setFilterStatus(applyStatus)
+    setPage(0)
+  }, [location.state])
 
   const handleStatusChange = async (orderId, status, note = '') => {
     setStatusUpdating(prev => new Set(prev).add(orderId))
@@ -108,6 +149,22 @@ export default function OrdersPage() {
           </Button>
         }
       />
+
+      {/* User filter banner */}
+      {filterUserId && (
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <User size={15} className="shrink-0 text-blue-500" />
+            <div>
+              <p className="text-xs font-semibold text-blue-800">{filterUserName || 'Người dùng'}</p>
+              <p className="text-[11px] text-blue-500">{filterUserEmail} · {data.totalElements} đơn hàng · Tổng: {data.content.reduce((s, o) => s + (o.totalPrice || 0), 0).toLocaleString('vi-VN')}₫</p>
+            </div>
+          </div>
+          <button onClick={clearUserFilter} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors">
+            <X size={13} /> Bỏ lọc
+          </button>
+        </div>
+      )}
 
       {/* Filter card */}
       <Card className="mb-6 p-4">
@@ -241,16 +298,18 @@ export default function OrdersPage() {
                                     <FileSpreadsheet size={13} className="text-green-600" />
                                     Xuất Excel
                                   </button>
-                                  <button
-                                    disabled={statusUpdating.has(o.id)}
-                                    onClick={() => handleStatusChange(
-                                      o.id,
-                                      pendingStatus[o.id] ?? o.status
-                                    )}
-                                    className="flex items-center gap-1.5 rounded-lg bg-[#D70018] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#b5001a] transition-colors disabled:cursor-wait disabled:opacity-60"
-                                  >
-                                    {statusUpdating.has(o.id) ? 'Đang lưu…' : 'Lưu thay đổi'}
-                                  </button>
+                                  {o.status !== 'COMPLETED' && o.status !== 'CANCELLED' && (
+                                    <button
+                                      disabled={statusUpdating.has(o.id)}
+                                      onClick={() => handleStatusChange(
+                                        o.id,
+                                        pendingStatus[o.id] ?? o.status
+                                      )}
+                                      className="flex items-center gap-1.5 rounded-lg bg-[#D70018] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#b5001a] transition-colors disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                      {statusUpdating.has(o.id) ? 'Đang lưu…' : 'Lưu thay đổi'}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -330,16 +389,22 @@ export default function OrdersPage() {
                                   </div>
                                   <div className="mt-3 border-t border-gray-100 pt-2.5" onClick={(e) => e.stopPropagation()}>
                                     <p className="mb-1.5 text-[11px] font-semibold text-gray-500">Đổi trạng thái:</p>
-                                    <select
-                                      value={pendingStatus[o.id] ?? o.status}
-                                      disabled={statusUpdating.has(o.id)}
-                                      onChange={(e) => setPendingStatus(prev => ({ ...prev, [o.id]: e.target.value }))}
-                                      className="h-8 w-full rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#D70018]/30 disabled:cursor-wait disabled:opacity-50"
-                                    >
-                                      {STATUS_OPTIONS.map((s) => (
-                                        <option key={s} value={s}>{ORDER_STATUS_LABEL[s]}</option>
-                                      ))}
-                                    </select>
+                                    {(o.status === 'COMPLETED' || o.status === 'CANCELLED') ? (
+                                      <div className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${o.status === 'COMPLETED' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                        <span>{o.status === 'COMPLETED' ? '✓ Đơn hàng đã hoàn thành' : '✕ Đơn hàng đã hủy'}</span>
+                                      </div>
+                                    ) : (
+                                      <select
+                                        value={pendingStatus[o.id] ?? o.status}
+                                        disabled={statusUpdating.has(o.id)}
+                                        onChange={(e) => setPendingStatus(prev => ({ ...prev, [o.id]: e.target.value }))}
+                                        className="h-8 w-full rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#D70018]/30 disabled:cursor-wait disabled:opacity-50"
+                                      >
+                                        {STATUS_OPTIONS.map((s) => (
+                                          <option key={s} value={s}>{ORDER_STATUS_LABEL[s]}</option>
+                                        ))}
+                                      </select>
+                                    )}
                                   </div>
                                 </div>
                               </div>

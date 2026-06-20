@@ -1,20 +1,26 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Headphones, Laptop, Smartphone, Speaker, Tablet } from 'lucide-react'
-import { brands, sidebarCategories } from './mockData'
+import { Headphones, Laptop, LayoutGrid, Smartphone, Speaker, Tablet } from 'lucide-react'
+import { getCategories } from '../../api/categories'
+import { brands } from './mockData'
 
-const iconMap = {
-  phone: Smartphone,
-  laptop: Laptop,
-  tablet: Tablet,
-  headphones: Headphones,
-  speaker: Speaker,
-}
-
-function categoryHref(category) {
-  return `/products?categoryName=${encodeURIComponent(category.name)}`
+function categoryIcon(name = '') {
+  const n = name.toLowerCase()
+  if (n.includes('điện thoại') || n.includes('phone')) return Smartphone
+  if (n.includes('laptop') || n.includes('máy tính xách tay')) return Laptop
+  if (n.includes('máy tính bảng') || n.includes('tablet')) return Tablet
+  if (n.includes('phụ kiện') || n.includes('accessory')) return Headphones
+  if (n.includes('âm thanh') || n.includes('loa') || n.includes('audio')) return Speaker
+  return LayoutGrid
 }
 
 export default function Sidebar() {
+  const [categories, setCategories] = useState([])
+
+  useEffect(() => {
+    getCategories().then(setCategories).catch(() => setCategories([]))
+  }, [])
+
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-shop-border bg-shop-surface p-5 shadow-sm">
@@ -22,17 +28,13 @@ export default function Sidebar() {
         <p className="mt-1 text-xs font-medium text-shop-muted">Đi thẳng tới nhóm sản phẩm cần mua</p>
 
         <nav className="mt-5 space-y-2">
-          {sidebarCategories.map((category) => {
-            const Icon = iconMap[category.icon]
-
+          {categories.map((category) => {
+            const Icon = categoryIcon(category.name)
             return (
               <Link
                 key={category.id}
-                to={categoryHref(category)}
-                className={[
-                  'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition',
-                  category.active ? 'bg-shop-red text-white' : 'text-shop-text hover:bg-shop-softBlue hover:text-shop-red',
-                ].join(' ')}
+                to={`/products?categoryId=${category.id}`}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-shop-text transition hover:bg-shop-softBlue hover:text-shop-red"
               >
                 <Icon className="h-4 w-4" />
                 {category.name}

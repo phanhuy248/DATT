@@ -17,7 +17,7 @@ const PAYMENT_METHODS = [
 ]
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useCart()
+  const { cart, fetchCart } = useCart()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -58,18 +58,18 @@ export default function CheckoutPage() {
     try {
       const items = cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity }))
       const order = await placeOrder({ ...form, couponCode: coupon?.code || couponCode, items })
+      // Backend đã xóa giỏ hàng ngay khi tạo đơn cho mọi phương thức thanh toán.
+      // Đồng bộ lại state giỏ hàng phía frontend.
+      await fetchCart()
       if (form.paymentMethod === 'VNPAY') {
-        // Giỏ hàng chỉ xóa khi thanh toán xác nhận thành công — KHÔNG xóa ở đây
         navigate(`/orders/${order.id}/payment`)
         return
       }
       if (form.paymentMethod === 'BANK_TRANSFER') {
-        // Giỏ hàng chỉ xóa khi admin duyệt / SePay webhook xác nhận
         navigate(`/orders/${order.id}/payment`)
         return
       }
-      // COD: giỏ đã được xóa ở backend, xóa thêm phía frontend cho đồng bộ UI
-      await clearCart()
+      // COD
       toast.success('Đặt hàng thành công')
       navigate(`/order-success/${order.id}`)
     } catch (err) {

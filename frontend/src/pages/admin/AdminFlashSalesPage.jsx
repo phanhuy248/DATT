@@ -116,15 +116,30 @@ export default function AdminFlashSalesPage() {
               {['Sản phẩm', 'Giá gốc', 'Giá sale', 'Giảm', 'Thời gian', 'Đã bán / Giới hạn', 'Trạng thái', 'Thứ tự', ''].map(h =>
                 <th key={h} style={{ padding: 10, textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>)}
             </tr></thead>
-            <tbody>{items.map(it => (
-              <tr key={it.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: 10, fontWeight: 600 }}>{it.productName}</td>
+            <tbody>{items.map(it => {
+              const isInvalid = Number(it.salePrice) >= Number(it.originalPrice)
+              return (
+              <tr key={it.id} style={{ borderBottom: '1px solid #f1f5f9', background: isInvalid ? '#fff7ed' : '' }}>
+                <td style={{ padding: 10, fontWeight: 600 }}>
+                  {it.productName}
+                  {isInvalid && (
+                    <span style={{ marginLeft: 8, fontSize: 11, background: '#f97316', color: '#fff', padding: '1px 6px', borderRadius: 8 }}>
+                      ⚠ Ẩn khỏi website
+                    </span>
+                  )}
+                </td>
                 <td style={{ padding: 10 }}><s>{fmt(it.originalPrice)}₫</s></td>
-                <td style={{ padding: 10, color: '#c70039', fontWeight: 700 }}>{fmt(it.salePrice)}₫</td>
+                <td style={{ padding: 10, color: isInvalid ? '#f97316' : '#c70039', fontWeight: 700 }}>{fmt(it.salePrice)}₫</td>
                 <td style={{ padding: 10 }}>
-                  <span style={{ background: '#c70039', color: '#fff', padding: '2px 8px', borderRadius: 12, fontSize: 12 }}>
-                    -{it.discountPercent}%
-                  </span>
+                  {isInvalid ? (
+                    <span style={{ background: '#f97316', color: '#fff', padding: '2px 8px', borderRadius: 12, fontSize: 12 }}>
+                      Giá lỗi
+                    </span>
+                  ) : (
+                    <span style={{ background: '#c70039', color: '#fff', padding: '2px 8px', borderRadius: 12, fontSize: 12 }}>
+                      -{it.discountPercent}%
+                    </span>
+                  )}
                 </td>
                 <td style={{ padding: 10, fontSize: 12 }}>
                   {fmtDt(it.startAt)}<br /><span style={{ color: '#888' }}>→ {fmtDt(it.endAt)}</span>
@@ -145,7 +160,8 @@ export default function AdminFlashSalesPage() {
                   </button>
                 </td>
               </tr>
-            ))}</tbody>
+              )
+            })}</tbody>
           </table>
           {items.length === 0 && (
             <p style={{ textAlign: 'center', padding: 24, color: '#888' }}>Chưa có sản phẩm nào trong Flash Sale</p>

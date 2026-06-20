@@ -12,21 +12,22 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
 })
 
 const statusMeta = {
-  PENDING: { label: 'Đang xử lý', icon: Clock3, badge: 'bg-shop-warning/10 text-shop-warning', percent: 20 },
-  CONFIRMED: { label: 'Đã xác nhận', icon: CheckCircle2, badge: 'bg-shop-softBlue text-shop-navy', percent: 38 },
-  PROCESSING: { label: 'Đang chuẩn bị hàng', icon: Package, badge: 'bg-shop-softBlue text-shop-navy', percent: 55 },
-  SHIPPING: { label: 'Đang giao hàng', icon: Truck, badge: 'bg-shop-softBlue text-shop-navy', percent: 76 },
-  COMPLETED: { label: 'Hoàn thành', icon: CheckCircle2, badge: 'bg-shop-success/10 text-shop-success', percent: 100 },
-  CANCELLED: { label: 'Đã hủy', icon: RotateCcw, badge: 'bg-shop-error/10 text-shop-error', percent: 100 },
+  PENDING_PAYMENT: { label: 'Chờ thanh toán', icon: Clock3, badge: 'bg-orange-100 text-orange-600', percent: 5 },
+  PENDING:    { label: 'Đang xử lý',         icon: Clock3,       badge: 'bg-shop-warning/10 text-shop-warning',  percent: 20  },
+  CONFIRMED:  { label: 'Đã xác nhận',         icon: CheckCircle2, badge: 'bg-shop-softBlue text-shop-navy',       percent: 38  },
+  PROCESSING: { label: 'Đang chuẩn bị hàng', icon: Package,      badge: 'bg-shop-softBlue text-shop-navy',       percent: 55  },
+  SHIPPING:   { label: 'Đang giao hàng',      icon: Truck,        badge: 'bg-shop-softBlue text-shop-navy',       percent: 76  },
+  COMPLETED:  { label: 'Hoàn thành',          icon: CheckCircle2, badge: 'bg-shop-success/10 text-shop-success',  percent: 100 },
+  CANCELLED:  { label: 'Đã hủy',              icon: RotateCcw,    badge: 'bg-shop-error/10 text-shop-error',      percent: 100 },
 }
 
 const paymentLabels = {
-  UNPAID: 'Chưa thanh toán',
-  PENDING: 'Chờ thanh toán',
-  PAID: 'Đã thanh toán',
-  FAILED: 'Thanh toán thất bại',
+  UNPAID:    'Chưa thanh toán',
+  PENDING:   'Chờ xác nhận',
+  SUCCESS:   'Đã thanh toán',
+  FAILED:    'Thanh toán thất bại',
   CANCELLED: 'Đã hủy thanh toán',
-  REFUNDED: 'Đã hoàn tiền',
+  REFUNDED:  'Đã hoàn tiền',
 }
 
 export function formatOrderCode(order) {
@@ -44,8 +45,11 @@ export default function OrderCard({ order, expanded = false, onToggle, onCancel,
   const items = Array.isArray(order?.items) ? order.items : []
   const total = Number(order?.totalPrice || 0)
   const showTracking = order?.status !== 'CANCELLED'
-  const cancellable = order?.status === 'PENDING' && order?.paymentStatus !== 'PAID'
-  const needsPayment = order?.status === 'PENDING'
+  // Cho phép hủy khi đang chờ thanh toán hoặc chờ xử lý, và chưa thanh toán thành công
+  const cancellable = ['PENDING_PAYMENT', 'PENDING'].includes(order?.status)
+    && order?.paymentStatus !== 'SUCCESS'
+  // Nút "Tiếp tục thanh toán" chỉ hiện khi đang ở PENDING_PAYMENT và chưa trả tiền
+  const needsPayment = order?.status === 'PENDING_PAYMENT'
     && order?.paymentMethod !== 'COD'
     && ['PENDING', 'CANCELLED', 'FAILED'].includes(order?.paymentStatus)
 

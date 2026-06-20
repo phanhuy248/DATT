@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react'
 import * as authApi from '../api/auth'
 import { getMe } from '../api/users'
+import { invalidateSession } from '../api/axios'
 
 const AuthContext = createContext(null)
 
@@ -100,6 +101,8 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = () => {
+    // Huỷ mọi request đang chờ refresh token của phiên cũ trước khi xoá dữ liệu
+    invalidateSession()
     const refreshToken = localStorage.getItem('refreshToken')
     if (refreshToken) {
       authApi.logout(refreshToken).catch(() => {})

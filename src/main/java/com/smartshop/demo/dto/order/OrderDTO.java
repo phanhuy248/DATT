@@ -20,8 +20,14 @@ public class OrderDTO {
     private String paymentStatus;
     private String transactionCode;
     private String couponCode;
+    private String cancelReason;
+    private LocalDateTime cancelledAt;
+    private LocalDateTime paidAt;
     private LocalDateTime createdDate;
     private List<OrderDetailDTO> items;
+    private Long userId;
+    private String userEmail;
+    private String userFullName;
 
     public static OrderDTO from(Order o) {
         OrderDTO dto = new OrderDTO();
@@ -36,7 +42,15 @@ public class OrderDTO {
         dto.paymentStatus = o.getPaymentStatus() != null ? o.getPaymentStatus().name() : null;
         dto.transactionCode = o.getTransactionCode();
         dto.couponCode = o.getCouponCode();
+        dto.cancelReason = o.getCancelReason();
+        dto.cancelledAt = o.getCancelledAt();
+        dto.paidAt = o.getPaidAt();
         dto.createdDate = o.getCreatedDate();
+        if (o.getUser() != null) {
+            dto.userId = o.getUser().getId();
+            dto.userEmail = o.getUser().getEmail();
+            dto.userFullName = o.getUser().getFullName();
+        }
         if (o.getOrderDetails() != null) {
             dto.items = o.getOrderDetails().stream().map(OrderDetailDTO::from).collect(Collectors.toList());
         }
@@ -57,7 +71,15 @@ public class OrderDTO {
         dto.paymentStatus = o.getPaymentStatus() != null ? o.getPaymentStatus().name() : null;
         dto.transactionCode = o.getTransactionCode();
         dto.couponCode = o.getCouponCode();
+        dto.cancelReason = o.getCancelReason();
+        dto.cancelledAt = o.getCancelledAt();
+        dto.paidAt = o.getPaidAt();
         dto.createdDate = o.getCreatedDate();
+        if (o.getUser() != null) {
+            dto.userId = o.getUser().getId();
+            dto.userEmail = o.getUser().getEmail();
+            dto.userFullName = o.getUser().getFullName();
+        }
         return dto;
     }
 
@@ -72,8 +94,14 @@ public class OrderDTO {
     public String getPaymentStatus() { return paymentStatus; }
     public String getTransactionCode() { return transactionCode; }
     public String getCouponCode() { return couponCode; }
+    public String getCancelReason() { return cancelReason; }
+    public LocalDateTime getCancelledAt() { return cancelledAt; }
+    public LocalDateTime getPaidAt() { return paidAt; }
     public LocalDateTime getCreatedDate() { return createdDate; }
     public List<OrderDetailDTO> getItems() { return items; }
+    public Long getUserId() { return userId; }
+    public String getUserEmail() { return userEmail; }
+    public String getUserFullName() { return userFullName; }
 
     public static class OrderDetailDTO {
         private long productId;

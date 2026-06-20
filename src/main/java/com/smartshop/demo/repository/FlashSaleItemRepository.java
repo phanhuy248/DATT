@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, Long> {
@@ -48,6 +49,28 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, Lo
     /** Toàn bộ danh sách cho admin (có phân trang). */
     @EntityGraph(attributePaths = {"product"})
     Page<FlashSaleItem> findAllByOrderBySortOrderAscCreatedAtDesc(Pageable pageable);
+
+    /**
+     * Tìm tất cả flash sale item theo productIds (kể cả đã hết hạn) có lock — dùng khi hoàn kho.
+     * Không lọc active/thời gian vì sale có thể đã hết hạn lúc đơn bị hủy.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = {"product"})
+    @Query("SELECT f FROM FlashSaleItem f WHERE f.product.id IN :productIds")
+    List<FlashSaleItem> findByProductIdsForUpdate(@Param("productIds") List<Long> productIds);
+
+    /** Tìm flash sale đang hoạt động cho một sản phẩm (không lock — dùng cho cart check). */
+    @EntityGraph(attributePaths = {"product"})
+    @Query("""
+            SELECT f FROM FlashSaleItem f
+            WHERE f.product.id = :productId
+              AND f.active = true
+              AND f.startAt <= :now
+              AND f.endAt > :now
+            """)
+    Optional<FlashSaleItem> findActiveByProductId(
+            @Param("productId") Long productId,
+            @Param("now") LocalDateTime now);
 
     /** Kiểm tra sản phẩm đã có bản ghi flash sale chưa (UNIQUE constraint). */
     boolean existsByProductId(Long productId);

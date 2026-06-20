@@ -9,9 +9,9 @@ import { getImageUrl } from '../../utils/image'
 import { buildAISearchParams } from '../../utils/aiSearch'
 
 const navItems = [
-  { to: '/products', label: 'Sản phẩm', active: (pathname) => pathname.startsWith('/products') },
-  { to: '/products?sortBy=newest', label: 'Hàng mới', active: () => false },
-  { to: '/products?sortBy=bestseller', label: 'Bán chạy', active: () => false },
+  { to: '/products', label: 'Sản phẩm', active: (pathname, search) => pathname.startsWith('/products') && search !== '?sortBy=newest' && search !== '?sortBy=bestseller' },
+  { to: '/products?sortBy=newest', label: 'Hàng mới', active: (pathname, search) => pathname.startsWith('/products') && search === '?sortBy=newest' },
+  { to: '/products?sortBy=bestseller', label: 'Bán chạy', active: (pathname, search) => pathname.startsWith('/products') && search === '?sortBy=bestseller' },
   { to: '/news', label: 'Tin tức', active: (pathname) => pathname.startsWith('/news') },
   { to: '/info/stores', label: 'Cửa hàng', active: (pathname) => pathname === '/info/stores' },
 ]
@@ -65,7 +65,7 @@ export default function Navbar() {
 
         <nav className="hidden flex-1 items-center gap-6 lg:flex xl:gap-8">
           {navItems.map((item) => {
-            const active = item.active(location.pathname)
+            const active = item.active(location.pathname, location.search)
 
             return (
               <Link

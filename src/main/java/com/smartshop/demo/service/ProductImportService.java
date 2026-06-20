@@ -172,16 +172,16 @@ public class ProductImportService {
         String sourceUrl = truncate(clean(item.getSourceUrl()), 1024);
         String categoryName = normalizeCategory(firstNonBlank(item.getCategory(), inferCategory(item)));
         String supplierName = clean(firstNonBlank(item.getSupplier(), source));
-        String brand = truncate(clean(firstNonBlank(item.getBrand(), item.getFactory(), inferBrand(item.getName()), supplierName)), 120);
+        String rawBrand = firstNonBlank(inferBrand(item.getName()), item.getBrand(), item.getFactory(), supplierName);
+        String brand = truncate(sanitizeBrand(rawBrand), 120);
         long stock = firstLong(item.getStock(), item.getQuantity(), product.getId() == 0 ? 10L : product.getQuantity());
-        long sold = firstLong(item.getSoldCount(), item.getSold(), product.getId() == 0 ? 0L : product.getSold());
 
         product.setName(truncate(clean(item.getName()), 240));
         product.setPrice(item.getPrice());
         product.setShortDesc(truncate(firstNonBlank(item.getShortDesc(), item.getDescription(), item.getDetailDesc(), item.getName()), 240));
         product.setDetailDesc(firstNonBlank(item.getDetailDesc(), item.getDescription(), item.getShortDesc(), buildDetailDescription(item)));
         product.setQuantity(Math.max(0, stock));
-        product.setSold(Math.max(0, sold));
+        if (product.getId() == 0) product.setSold(0); // sản phẩm mới luôn bắt đầu với sold=0
         product.setFactory(brand);
         product.setTarget(firstNonBlank(item.getTarget(), defaultTarget(categoryName)));
         product.setCategory(getOrCreateCategory(categoryName));
@@ -348,6 +348,15 @@ public class ProductImportService {
         if (lower.contains("dien thoai")) return "Cá nhân, công việc, giải trí";
         if (lower.contains("phu kien")) return "Người dùng công nghệ";
         return "Người dùng phổ thông";
+    }
+
+    private String sanitizeBrand(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        for (String part : raw.split("[,;|/]")) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) return trimmed;
+        }
+        return raw.trim();
     }
 
     private String inferBrand(String name) {

@@ -72,9 +72,16 @@ public class DashboardController {
 
     @GetMapping("/top-products")
     @Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<List<ProductDTO>>> getTopProducts(
-            @RequestParam(defaultValue = "5") int limit) {
-        return ResponseEntity.ok(ApiResponse.ok(productService.getTopSellingProducts(limit)));
+    public ResponseEntity<ApiResponse<List<?>>> getTopProducts(
+            @RequestParam(defaultValue = "5") int limit,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) Long categoryId) {
+        LocalDate from = (dateFrom != null && !dateFrom.isBlank()) ? LocalDate.parse(dateFrom) : null;
+        LocalDate to   = (dateTo   != null && !dateTo.isBlank())   ? LocalDate.parse(dateTo)   : null;
+        return ResponseEntity.ok(ApiResponse.ok(
+                productService.getTopSellingProductsFiltered(brand, from, to, categoryId, limit)));
     }
 
     @GetMapping("/order-status-statistics")
@@ -100,13 +107,19 @@ public class DashboardController {
     @GetMapping("/category-revenue")
     @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCategoryRevenue(
-            @RequestParam(required = false) String brand) {
-        return ResponseEntity.ok(ApiResponse.ok(orderService.getCategoryRevenueFiltered(brand)));
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) Long categoryId) {
+        LocalDate from = (dateFrom != null && !dateFrom.isBlank()) ? LocalDate.parse(dateFrom) : null;
+        LocalDate to   = (dateTo   != null && !dateTo.isBlank())   ? LocalDate.parse(dateTo)   : null;
+        return ResponseEntity.ok(ApiResponse.ok(orderService.getCategoryRevenueFiltered(brand, from, to, categoryId)));
     }
 
     private Map<String, Object> buildOverview() {
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalOrders", orderService.countOrders());
+        stats.put("todayOrders", orderService.countTodayOrders());
         stats.put("totalRevenue", orderService.getTotalRevenue());
         stats.put("deliveredRevenue", orderService.getDeliveredRevenue());
         stats.put("totalProducts", productService.countProductsDirect());

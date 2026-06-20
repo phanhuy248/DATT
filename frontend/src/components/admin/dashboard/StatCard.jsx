@@ -50,15 +50,16 @@ const toneMap = {
   },
 }
 
-export default function StatCard({ stat }) {
+export default function StatCard({ stat, onClick }) {
   const Icon = iconMap[stat.icon]
   const tone = toneMap[stat.tone] || toneMap.rose
 
   return (
     <motion.article
+      onClick={onClick}
       whileHover={{ y: -5, scale: 1.01 }}
       transition={{ duration: 0.18 }}
-      className={`min-h-[142px] rounded-[22px] border bg-white p-6 shadow-[0_14px_30px_rgba(37,24,24,0.10)] transition-shadow hover:shadow-[0_20px_40px_rgba(37,24,24,0.16)] ${tone.card}`}
+      className={`min-h-[142px] rounded-[22px] border bg-white p-6 shadow-[0_14px_30px_rgba(37,24,24,0.10)] transition-shadow hover:shadow-[0_20px_40px_rgba(37,24,24,0.16)] ${tone.card} ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="mb-8 flex items-center gap-2">
         <span className={`flex h-9 w-9 items-center justify-center rounded-2xl ${tone.icon}`}>

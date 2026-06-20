@@ -35,25 +35,22 @@ public class SepayWebhookService {
     private final SepayTransactionRepository sepayTransactionRepository;
     private final OrderRepository orderRepository;
     private final OrderService orderService;
-    private final CartService cartService;
     private final ObjectMapper objectMapper;
 
     public SepayWebhookService(SepayTransactionRepository sepayTransactionRepository,
                                OrderRepository orderRepository,
                                OrderService orderService,
-                               CartService cartService,
                                ObjectMapper objectMapper) {
         this.sepayTransactionRepository = sepayTransactionRepository;
         this.orderRepository = orderRepository;
         this.orderService = orderService;
-        this.cartService = cartService;
         this.objectMapper = objectMapper;
     }
 
     /**
-     * Xử lý webhook từ SePay. Thiết kế idempotent: gọi nhiều lần cùng sepayId không gây hiệu ứng phụ.
+     * Xử lý webhook từ SePay. Idempotent: gọi nhiều lần cùng sepayId không gây hiệu ứng phụ.
      *
-     * @return true nếu đã khớp đơn và đánh dấu PAID, false nếu không khớp (nhưng không phải lỗi).
+     * @return true nếu đã khớp đơn và đánh dấu SUCCESS, false nếu không khớp.
      */
     @Transactional
     public boolean processWebhook(SepayWebhookPayload payload) {
@@ -68,7 +65,7 @@ public class SepayWebhookService {
             return false;
         }
 
-        // Idempotency: nếu đã xử lý sepayId này rồi thì trả về sớm
+        // Idempotency
         if (sepayTransactionRepository.existsBySepayId(payload.getId())) {
             log.info("SePay webhook id={} đã được xử lý trước đó, bỏ qua", payload.getId());
             return false;
@@ -80,37 +77,46 @@ public class SepayWebhookService {
         Long orderId = parseOrderId(payload.getContent());
         if (orderId != null) {
             Order order = orderRepository.findById(orderId).orElse(null);
-            if (order != null
-                    && order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER
-                    && order.getStatus() != OrderStatus.CANCELLED) {
 
-                if (order.getPaymentStatus() == PaymentStatus.PAID) {
-                    // Đơn đã PAID (ví dụ admin duyệt tay trước) — ghi nhận nhưng không thay đổi
-                    log.info("SePay webhook id={}: đơn {} đã PAID sẵn, bỏ qua cập nhật", payload.getId(), orderId);
+            if (order != null && order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER) {
+
+                // ── BẮT BUỘC: Đơn đã CANCELLED → từ chối, ghi cảnh báo ──────────
+                if (order.getStatus() == OrderStatus.CANCELLED) {
+                    log.warn("[SePay] CẢNH BÁO: Đơn #{} đã CANCELLED nhưng nhận được webhook thành công " +
+                             "(sepayId={}, amount={}, content='{}'). Không cập nhật đơn hàng.",
+                            orderId, payload.getId(), payload.getTransferAmount(), payload.getContent());
+                    // Lưu transaction để audit, nhưng không đánh dấu matched = true
+                    matchedOrder = order;
+                    saveSepayTransaction(payload, matchedOrder, false);
+                    return false;
+                }
+
+                if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
+                    // Đơn đã SUCCESS (ví dụ admin duyệt tay trước)
+                    log.info("SePay webhook id={}: đơn {} đã SUCCESS sẵn, bỏ qua cập nhật", payload.getId(), orderId);
                     matched = true;
                     matchedOrder = order;
                 } else if (amountSufficient(payload.getTransferAmount(), order.getTotalPrice())) {
-                    // Số tiền đủ → đánh dấu PAID và chuyển sang CONFIRMED
+                    // Số tiền đủ → đánh dấu SUCCESS và chuyển sang CONFIRMED
                     String txCode = StringUtils.hasText(payload.getReferenceCode())
                             ? payload.getReferenceCode()
                             : "SEPAY-" + payload.getId();
-                    order.setPaymentStatus(PaymentStatus.PAID);
+                    order.setPaymentStatus(PaymentStatus.SUCCESS);
+                    order.setPaidAt(LocalDateTime.now());
                     order.setTransactionCode(txCode);
                     orderRepository.save(order);
-                    if (order.getUser() != null) {
-                        cartService.clearCart(order.getUser());
-                    }
 
-                    if (order.getStatus() == OrderStatus.PENDING) {
+                    // Chuyển PENDING_PAYMENT → CONFIRMED
+                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
                         orderService.updateStatus(orderId, OrderStatus.CONFIRMED.name(), null,
                                 "Tự động xác nhận qua SePay webhook id=" + payload.getId());
                     }
 
                     matched = true;
                     matchedOrder = order;
-                    log.info("SePay webhook id={}: đơn {} -> PAID+CONFIRMED, txCode={}", payload.getId(), orderId, txCode);
+                    log.info("SePay webhook id={}: đơn {} → SUCCESS+CONFIRMED, txCode={}", payload.getId(), orderId, txCode);
                 } else {
-                    log.warn("SePay webhook id={}: số tiền {} < yêu cầu {} cho đơn {}, không đánh dấu PAID",
+                    log.warn("SePay webhook id={}: số tiền {} < yêu cầu {} cho đơn {}, không đánh dấu SUCCESS",
                             payload.getId(), payload.getTransferAmount(), order.getTotalPrice(), orderId);
                     matchedOrder = order;
                 }
@@ -121,7 +127,6 @@ public class SepayWebhookService {
             log.warn("SePay webhook id={}: không parse được mã đơn từ content='{}'", payload.getId(), payload.getContent());
         }
 
-        // Luôn lưu bản ghi giao dịch (kể cả khi không khớp) để admin tra cứu
         saveSepayTransaction(payload, matchedOrder, matched);
         return matched;
     }
@@ -141,21 +146,18 @@ public class SepayWebhookService {
         try {
             sepayTransactionRepository.save(tx);
         } catch (DataIntegrityViolationException e) {
-            // Trường hợp hiếm gặp: hai request đồng thời vượt qua existsBySepayId
-            // UNIQUE constraint ngăn trùng — bỏ qua an toàn
+            // Hai request đồng thời vượt qua existsBySepayId — UNIQUE constraint ngăn trùng
             log.info("SePay webhook id={} bị trùng lặp đồng thời, bỏ qua", payload.getId());
         }
     }
 
-    /** Parse mã đơn hàng từ nội dung chuyển khoản, ví dụ "DH123" hoặc "Thanh toan DH123". */
     private Long parseOrderId(String content) {
         if (!StringUtils.hasText(content)) return null;
         Matcher m = ORDER_ID_PATTERN.matcher(content);
         if (m.find()) {
             try {
                 return Long.parseLong(m.group(1));
-            } catch (NumberFormatException ignored) {
-            }
+            } catch (NumberFormatException ignored) {}
         }
         return null;
     }

@@ -1,16 +1,20 @@
 import React from 'react'
 
-export default function BestSellingProducts({ products, onDetail }) {
+export default function BestSellingProducts({ products, onDetail, onProductClick }) {
   return (
     <section className="rounded-[24px] border border-rose-50 bg-white shadow-[0_14px_30px_rgba(31,24,24,0.08)]">
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-6">
         <h2 className="text-xl font-extrabold text-[#1d0f0f]">Bán chạy nhất</h2>
-        <button className="text-sm font-extrabold text-[#c70039]" onClick={onDetail} type="button">Chi tiết</button>
+        <button className="text-sm font-extrabold text-[#c70039]" onClick={onDetail} type="button">Xem tất cả</button>
       </div>
       <div className="space-y-5 p-6">
         {products.length === 0 && <p className="py-8 text-center text-sm font-semibold text-slate-500">Chưa có dữ liệu bán chạy.</p>}
         {products.map((product) => (
-          <article key={product.id} className="flex items-center gap-4">
+          <article
+            key={product.id}
+            onClick={() => onProductClick?.(product)}
+            className={`flex items-center gap-4 rounded-xl p-1 -mx-1 transition ${onProductClick ? 'cursor-pointer hover:bg-rose-50/50' : ''}`}
+          >
             <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 to-rose-50 ring-1 ring-slate-100">
               {product.image ? <img className="h-14 w-14 object-contain" src={product.image} alt={product.name} /> : <span className="text-[10px] font-extrabold text-slate-300">IMG</span>}
             </div>

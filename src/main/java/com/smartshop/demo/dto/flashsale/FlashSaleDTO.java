@@ -45,11 +45,12 @@ public class FlashSaleDTO {
 
     private static int calcDiscountPercent(BigDecimal original, BigDecimal sale) {
         if (original == null || original.compareTo(BigDecimal.ZERO) <= 0) return 0;
-        return Math.min(99, Math.max(1,
+        // Không clamp về 1 — để giá trị âm lộ ra khi salePrice > originalPrice
+        return Math.min(99,
                 original.subtract(sale)
                         .multiply(BigDecimal.valueOf(100))
                         .divide(original, 0, RoundingMode.HALF_UP)
-                        .intValue()));
+                        .intValue());
     }
 
     public Long getId() { return id; }

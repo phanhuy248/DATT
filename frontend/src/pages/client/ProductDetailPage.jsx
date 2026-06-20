@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BatteryCharging, CheckCircle2, Headphones, Minus, Monitor, Package, Plus, RotateCcw, ShieldCheck, ShoppingCart, Star, Zap } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { getActiveFlashSales } from '../../api/flashSales'
 import { getPriceHistory, getProduct, getRelatedProducts } from '../../api/products'
 import { addReview, getReviews } from '../../api/reviews'
 import ProductCard from '../../components/product/ProductCard'
@@ -32,19 +33,13 @@ const resolveSalePercent = (product, oldPrice) => {
   return 0
 }
 
-const resolveDefaultSalePercent = (product) => {
-  const DEFAULT_SALE_PERCENTS = [8, 10, 12, 15]
-  if (!product || Number(product.price || 0) <= 0 || product.quantity === 0) return 0
-  const index = Math.abs(Number(product.id || 0)) % DEFAULT_SALE_PERCENTS.length
-  return DEFAULT_SALE_PERCENTS[index]
-}
-
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { addToCart } = useCart()
   const { user } = useAuth()
   const [product, setProduct] = useState(null)
+  const [flashSaleItem, setFlashSaleItem] = useState(null)
   const [related, setRelated] = useState([])
   const [priceHistory, setPriceHistory] = useState([])
   const [reviews, setReviews] = useState([])
@@ -61,30 +56,34 @@ export default function ProductDetailPage() {
       getReviews(id),
       getRelatedProducts(id, 8).catch(() => []),
       getPriceHistory(id).catch(() => []),
+      getActiveFlashSales().catch(() => []),
     ])
-      .then(([nextProduct, nextReviews, nextRelated, history]) => {
+      .then(([nextProduct, nextReviews, nextRelated, history, flashSales]) => {
         setProduct(nextProduct)
         setReviews(nextReviews || [])
         setRelated(nextRelated || [])
         setPriceHistory(history || [])
         setSelectedImage(getImageUrl(nextProduct?.images?.[0] || nextProduct?.image))
+        const sale = (flashSales || []).find(fs => String(fs.productId) === String(id))
+        setFlashSaleItem(sale || null)
       })
       .finally(() => setLoading(false))
   }, [id])
 
-  const oldPrice = useMemo(() => resolveOldPrice(product), [product])
-  const discountPercent = useMemo(() => {
-    const pct = resolveSalePercent(product, oldPrice)
-    if (pct > 0) return pct
-    return resolveDefaultSalePercent(product)
-  }, [product, oldPrice])
+  // displayPrice: flash sale price khi có, ngược lại giá DB
+  const displayPrice = useMemo(() =>
+    flashSaleItem ? Number(flashSaleItem.salePrice) : Number(product?.price || 0),
+    [flashSaleItem, product?.price]
+  )
+  // finalOldPrice: giá gốc thực (DB price khi đang sale, hoặc từ product.originalPrice)
   const finalOldPrice = useMemo(() => {
-    if (oldPrice > 0) return oldPrice
-    if (discountPercent > 0 && product?.price) {
-      return Math.round((product.price / (1 - discountPercent / 100)) / 1000) * 1000
-    }
-    return 0
-  }, [oldPrice, discountPercent, product?.price])
+    if (flashSaleItem) return Number(flashSaleItem.originalPrice)
+    return resolveOldPrice(product)
+  }, [flashSaleItem, product])
+  const discountPercent = useMemo(() => {
+    if (flashSaleItem) return flashSaleItem.discountPercent
+    return resolveSalePercent(product, finalOldPrice)
+  }, [flashSaleItem, product, finalOldPrice])
   const highlights = useMemo(() => buildHighlights(product), [product])
   const specPreview = useMemo(() => buildSpecPreview(product), [product])
   const priceMessage = useMemo(() => buildPriceMessage(product, priceHistory), [product, priceHistory])
@@ -235,7 +234,7 @@ export default function ProductDetailPage() {
               <div>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Giá bán ưu đãi</span>
                 <div className="flex flex-wrap items-baseline gap-2 mb-1">
-                  <span className="text-4xl font-black leading-none text-shop-red">{formatPrice(product.price)}</span>
+                  <span className="text-4xl font-black leading-none text-shop-red">{formatPrice(displayPrice)}</span>
                   {finalOldPrice > 0 && (
                     <span className="text-sm text-slate-400 line-through font-medium">
                       {formatPrice(finalOldPrice)}

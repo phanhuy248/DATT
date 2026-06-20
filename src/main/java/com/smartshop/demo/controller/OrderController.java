@@ -1,14 +1,12 @@
 package com.smartshop.demo.controller;
 
 import com.smartshop.demo.domain.Order;
-import com.smartshop.demo.domain.PaymentMethod;
 import com.smartshop.demo.domain.User;
 import com.smartshop.demo.dto.ApiResponse;
 import com.smartshop.demo.dto.PagedResponse;
 import com.smartshop.demo.dto.order.OrderDTO;
 import com.smartshop.demo.dto.order.PlaceOrderRequest;
 import com.smartshop.demo.service.AuditLogService;
-import com.smartshop.demo.service.CartService;
 import com.smartshop.demo.service.OrderService;
 import com.smartshop.demo.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,16 +29,13 @@ public class OrderController {
 
     private final OrderService orderService;
     private final UserService userService;
-    private final CartService cartService;
     private final AuditLogService auditLogService;
 
     public OrderController(OrderService orderService,
                            UserService userService,
-                           CartService cartService,
                            AuditLogService auditLogService) {
         this.orderService = orderService;
         this.userService = userService;
-        this.cartService = cartService;
         this.auditLogService = auditLogService;
     }
 
@@ -51,11 +46,7 @@ public class OrderController {
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         User user = userService.findByEmail(userDetails.getUsername());
         Order order = orderService.placeOrder(user, req, idempotencyKey);
-        // COD: xóa giỏ ngay vì không cần bước thanh toán online.
-        // VNPay/BANK_TRANSFER: giỏ được xóa khi payment xác nhận thành công.
-        if (order.getPaymentMethod() == PaymentMethod.COD) {
-            cartService.clearCart(user);
-        }
+        // Giỏ hàng đã được xóa trong OrderService.placeOrder() cho mọi phương thức thanh toán.
         return ResponseEntity.status(201).body(ApiResponse.ok("Đặt hàng thành công", OrderDTO.from(order)));
     }
 
@@ -63,8 +54,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<List<OrderDTO>>> myOrders(
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userService.findByEmail(userDetails.getUsername());
-        List<OrderDTO> orders = orderService.getOrdersByUser(user)
-                .stream().map(OrderDTO::from).toList();
+        List<OrderDTO> orders = orderService.getOrdersByUser(user);
         return ResponseEntity.ok(ApiResponse.ok(orders));
     }
 
@@ -103,11 +93,12 @@ public class OrderController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false)    String status,
+            @RequestParam(required = false)    Long userId,
             @RequestParam(required = false)    String search,
             @RequestParam(required = false)    String dateFrom,
             @RequestParam(required = false)    String dateTo) {
         Page<OrderDTO> dtoPage = orderService.getAllOrders(
-                status, search, dateFrom, dateTo,
+                status, userId, search, dateFrom, dateTo,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate")));
         return ResponseEntity.ok(ApiResponse.ok(PagedResponse.of(dtoPage)));
     }

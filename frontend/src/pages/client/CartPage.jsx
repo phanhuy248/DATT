@@ -70,7 +70,14 @@ export default function CartPage() {
                   <Link to={`/products/${item.productId}`} className="line-clamp-2 text-sm font-bold leading-5 text-shop-text hover:text-shop-red">
                     {item.productName}
                   </Link>
-                  <p className="mt-2 text-sm font-bold text-shop-red">{item.productPrice.toLocaleString('vi-VN')}đ</p>
+                  {item.salePrice != null ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-sm font-bold text-shop-red">{item.salePrice.toLocaleString('vi-VN')}đ</span>
+                      <span className="text-xs text-shop-muted line-through">{item.productPrice.toLocaleString('vi-VN')}đ</span>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm font-bold text-shop-red">{item.productPrice.toLocaleString('vi-VN')}đ</p>
+                  )}
                 </div>
 
                 <QuantityStepper

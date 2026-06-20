@@ -46,6 +46,7 @@ export function RoleBadge({ role }: { role: string }) {
 }
 
 export const ORDER_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  PENDING_PAYMENT: 'orange',
   PENDING:    'warning',
   CONFIRMED:  'info',
   PROCESSING: 'sky',
@@ -55,6 +56,7 @@ export const ORDER_STATUS_VARIANT: Record<string, BadgeVariant> = {
 }
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
+  PENDING_PAYMENT: 'Chờ thanh toán',
   PENDING:    'Chờ xác nhận',
   CONFIRMED:  'Đã xác nhận',
   PROCESSING: 'Đang chuẩn bị',
@@ -63,20 +65,23 @@ export const ORDER_STATUS_LABEL: Record<string, string> = {
   CANCELLED:  'Đã hủy',
 }
 
+// Chỉ hiển thị 3 trạng thái từ góc nhìn admin: đã thanh toán / thất bại / chưa thanh toán
 export const PAYMENT_STATUS_VARIANT: Record<string, BadgeVariant> = {
-  PAID:     'success',
-  UNPAID:   'gray',
-  PENDING:  'warning',
+  SUCCESS:  'success',
+  PAID:     'success',   // backward compat
   FAILED:   'danger',
   CANCELLED:'danger',
+  UNPAID:   'gray',
+  PENDING:  'gray',      // SePay đang chờ → gộp vào "chưa thanh toán"
   REFUNDED: 'info',
 }
 
 export const PAYMENT_STATUS_LABEL: Record<string, string> = {
-  UNPAID:   'Chưa thanh toán',
-  PENDING:  'Chờ xác nhận',
-  PAID:     'Đã thanh toán',
+  SUCCESS:  'Đã thanh toán',
+  PAID:     'Đã thanh toán', // backward compat
   FAILED:   'Thất bại',
-  CANCELLED:'Đã hủy',
+  CANCELLED:'Thất bại',
+  UNPAID:   'Chưa thanh toán',
+  PENDING:  'Chưa thanh toán', // SePay đang chờ → gộp vào "chưa thanh toán"
   REFUNDED: 'Đã hoàn tiền',
 }

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, FileUp, Plus } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { Download, Plus } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { createProduct, deleteProduct, getProducts, importProductsJson, restoreProduct, toggleProductActive, updateProduct } from '../../api/products'
+import { createProduct, deleteProduct, getProducts, restoreProduct, toggleProductActive, updateProduct } from '../../api/products'
 import { getCategories } from '../../api/categories'
 import { getSuppliers } from '../../api/suppliers'
 import ProductFilters, { type ProductFiltersValue } from '../../components/admin/ProductFilters'
@@ -71,11 +72,6 @@ function mapApiProduct(product: any): AdminProduct {
   }
 }
 
-function getRowValue(row: Record<string, any>, keys: string[]) {
-  const match = Object.keys(row).find((key) => keys.includes(key.trim().toLowerCase()))
-  return match ? row[match] : ''
-}
-
 function buildFormData(value: ProductFormValue, imageFile?: File | null) {
   const payload = {
     name: value.name.trim(),
@@ -96,6 +92,9 @@ function buildFormData(value: ProductFormValue, imageFile?: File | null) {
 }
 
 export default function ProductsPage() {
+  const location = useLocation()
+  const navHandled = useRef(false)
+
   const [products, setProducts] = useState<AdminProduct[]>([])
   const [allProductsForStats, setAllProductsForStats] = useState<AdminProduct[]>([])
   const [categories, setCategories] = useState<Option[]>([])
@@ -110,8 +109,6 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
   const [pendingDelete, setPendingDelete] = useState<AdminProduct | null>(null)
-  const importInputRef = useRef<HTMLInputElement | null>(null)
-
   const loadProducts = useCallback(async () => {
     setLoading(true)
     try {
@@ -161,6 +158,27 @@ export default function ProductsPage() {
     getSuppliers().then(setSuppliers).catch(() => setSuppliers([]))
     loadStats()
   }, [loadStats])
+
+  // Handle navigation state from dashboard
+  useEffect(() => {
+    if (navHandled.current) return
+    const state = location.state as { openProductId?: number; applyStatus?: string } | null
+    if (!state) return
+
+    if (state.applyStatus) {
+      navHandled.current = true
+      const next = { ...emptyFilters, status: state.applyStatus }
+      setFilters(next)
+      setAppliedFilters(next)
+      setPage(0)
+    } else if (state.openProductId && !loading && products.length > 0) {
+      const found = products.find((p) => p.id === state.openProductId)
+      if (found) {
+        navHandled.current = true
+        setModal({ mode: 'view', product: found })
+      }
+    }
+  }, [location.state, loading, products])
 
   const stats = useMemo(() => {
     const all = allProductsForStats
@@ -264,68 +282,66 @@ export default function ProductsPage() {
   }
 
   const handleExport = async () => {
-    const XLSX = await import('xlsx')
-    const rows = products.map((product) => ({
-      'T\u00EAn s\u1EA3n ph\u1EA9m': product.name,
-      'M\u00E3 SKU': product.sku,
-      'Danh m\u1EE5c': product.category,
-      'Gi\u00E1 b\u00E1n': product.price,
-      'T\u1ED3n kho': product.stock,
-      '\u0110\u00E3 b\u00E1n': product.sold,
-      'Tr\u1EA1ng th\u00E1i': product.status,
-    }))
-    const worksheet = XLSX.utils.json_to_sheet(rows)
-    // \u0110\u1EB7t \u0111\u1ED9 r\u1ED9ng c\u1ED9t h\u1EE3p l\u00FD
-    worksheet['!cols'] = [
-      { wch: 40 }, // T\u00EAn s\u1EA3n ph\u1EA9m
-      { wch: 14 }, // M\u00E3 SKU
-      { wch: 18 }, // Danh m\u1EE5c
-      { wch: 16 }, // Gi\u00E1 b\u00E1n
-      { wch: 10 }, // T\u1ED3n kho
-      { wch: 10 }, // \u0110\u00E3 b\u00E1n
-      { wch: 16 }, // Tr\u1EA1ng th\u00E1i
-    ]
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'S\u1EA3n ph\u1EA9m')
-    XLSX.writeFile(workbook, 'smartshop-products.xlsx')
-  }
-
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-
+    const toastId = toast.loading('\u0110ang t\u1EA3i to\u00E0n b\u1ED9 s\u1EA3n ph\u1EA9m...')
     try {
-      if (file.name.toLowerCase().endsWith('.json')) {
-        const payload = JSON.parse(await file.text())
-        await importProductsJson(payload)
-        toast.success('Đã nhập sản phẩm từ JSON.')
-      } else {
-        const XLSX = await import('xlsx')
-        const buffer = await file.arrayBuffer()
-        const workbook = XLSX.read(buffer, { type: 'array' })
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet)
-        for (const row of rows) {
-          const name = String(getRowValue(row, ['name', 'tên sản phẩm', 'ten san pham']) || '').trim()
-          if (!name) continue
-          await createProduct(buildFormData({
-            name,
-            price: String(getRowValue(row, ['price', 'giá', 'gia', 'giá bán', 'gia ban']) || 0),
-            quantity: String(getRowValue(row, ['quantity', 'stock', 'tồn kho', 'ton kho']) || 1),
-            shortDesc: String(getRowValue(row, ['shortdesc', 'mô tả ngắn', 'mo ta ngan']) || name),
-            detailDesc: String(getRowValue(row, ['detaildesc', 'mô tả chi tiết', 'mo ta chi tiet']) || name),
-            factory: String(getRowValue(row, ['brand', 'factory', 'thương hiệu', 'thuong hieu']) || ''),
-            target: String(getRowValue(row, ['target', 'đối tượng', 'doi tuong']) || ''),
-            categoryId: String(getRowValue(row, ['categoryid', 'category id', 'mã danh mục', 'ma danh muc']) || ''),
-            supplierId: String(getRowValue(row, ['supplierid', 'supplier id', 'mã nhà cung cấp', 'ma nha cung cap']) || ''),
-          }))
+      const XLSX = await import('xlsx')
+      const response = await getProducts({ page: 0, size: 9999, sortBy: 'newest' })
+      const allProducts = (response.content || []).map(mapApiProduct)
+
+      const rows = allProducts.map((product) => {
+        const raw = product.raw || {}
+        const specs = raw.specifications && typeof raw.specifications === 'object'
+          ? Object.entries(raw.specifications).map(([k, v]) => `${k}: ${v}`).join(' | ')
+          : ''
+        return {
+          'ID': raw.id ?? '',
+          'T\u00EAn s\u1EA3n ph\u1EA9m': product.name,
+          'M\u00E3 SKU': product.sku,
+          'Danh m\u1EE5c': product.category,
+          'Th\u01B0\u01A1ng hi\u1EC7u': raw.factory ?? '',
+          '\u0110\u1ED1i t\u01B0\u1EE3ng': raw.target ?? '',
+          'Gi\u00E1 b\u00E1n (\u0111)': Number(raw.price ?? 0),
+          'Gi\u00E1 g\u1ED1c (\u0111)': Number(raw.originalPrice ?? 0),
+          'Gi\u1EA3m gi\u00E1 (%)': raw.discountPercent ?? 0,
+          'T\u1ED3n kho': product.stock,
+          '\u0110\u00E3 b\u00E1n': product.sold,
+          'Tr\u1EA1ng th\u00E1i': product.status,
+          'Nh\u00E0 cung c\u1EA5p': raw.supplierName ?? '',
+          'M\u00F4 t\u1EA3 ng\u1EAFn': raw.shortDesc ?? '',
+          '\u0110\u00E1nh gi\u00E1 TB': raw.averageRating ?? 0,
+          'S\u1ED1 l\u01B0\u1EE3t \u0111\u00E1nh gi\u00E1': raw.reviewCount ?? 0,
+          'Ngu\u1ED3n': raw.sourceSite ?? '',
+          'Th\u00F4ng s\u1ED1 k\u1EF9 thu\u1EADt': specs,
         }
-        toast.success(`Đã nhập ${rows.length} dòng từ Excel.`)
-      }
-      await loadProducts()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || 'Không thể nhập file.')
+      })
+
+      const worksheet = XLSX.utils.json_to_sheet(rows)
+      worksheet['!cols'] = [
+        { wch: 8 },  // ID
+        { wch: 45 }, // T\u00EAn s\u1EA3n ph\u1EA9m
+        { wch: 14 }, // M\u00E3 SKU
+        { wch: 18 }, // Danh m\u1EE5c
+        { wch: 16 }, // Th\u01B0\u01A1ng hi\u1EC7u
+        { wch: 16 }, // \u0110\u1ED1i t\u01B0\u1EE3ng
+        { wch: 16 }, // Gi\u00E1 b\u00E1n
+        { wch: 16 }, // Gi\u00E1 g\u1ED1c
+        { wch: 12 }, // Gi\u1EA3m gi\u00E1
+        { wch: 10 }, // T\u1ED3n kho
+        { wch: 10 }, // \u0110\u00E3 b\u00E1n
+        { wch: 16 }, // Tr\u1EA1ng th\u00E1i
+        { wch: 20 }, // Nh\u00E0 cung c\u1EA5p
+        { wch: 40 }, // M\u00F4 t\u1EA3 ng\u1EAFn
+        { wch: 12 }, // \u0110\u00E1nh gi\u00E1 TB
+        { wch: 14 }, // S\u1ED1 l\u01B0\u1EE3t \u0111\u00E1nh gi\u00E1
+        { wch: 14 }, // Ngu\u1ED3n
+        { wch: 60 }, // Th\u00F4ng s\u1ED1 k\u1EF9 thu\u1EADt
+      ]
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'S\u1EA3n ph\u1EA9m')
+      XLSX.writeFile(workbook, 'smartshop-products.xlsx')
+      toast.update(toastId, { render: `\u0110\u00E3 xu\u1EA5t ${allProducts.length} s\u1EA3n ph\u1EA9m.`, type: 'success', isLoading: false, autoClose: 3000 })
+    } catch {
+      toast.update(toastId, { render: 'Kh\u00F4ng th\u1EC3 xu\u1EA5t file.', type: 'error', isLoading: false, autoClose: 3000 })
     }
   }
 
@@ -336,11 +352,6 @@ export default function ProductsPage() {
         breadcrumb={[{ label: 'Admin' }, { label: 'Sản phẩm' }]}
         actions={
           <>
-            <input ref={importInputRef} accept=".xlsx,.xls,.csv,.json,application/json" className="hidden" onChange={handleImport} type="file" />
-            <Button variant="secondary" size="md" onClick={() => importInputRef.current?.click()}>
-              <FileUp size={15} />
-              Nhập Excel
-            </Button>
             <Button variant="secondary" size="md" onClick={handleExport}>
               <Download size={15} />
               Xuất file

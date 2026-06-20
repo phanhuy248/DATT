@@ -58,7 +58,7 @@ class VnpayPaymentServiceTest {
 
         when(orderRepository.findById(123L)).thenReturn(Optional.of(order));
 
-        VnpayPaymentService service = new VnpayPaymentService(properties, orderRepository, mock(CartService.class));
+        VnpayPaymentService service = new VnpayPaymentService(properties, orderRepository);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("::1");
 
@@ -98,12 +98,12 @@ class VnpayPaymentServiceTest {
 
         when(orderRepository.findById(123L)).thenReturn(Optional.of(order));
 
-        VnpayPaymentService service = new VnpayPaymentService(properties, orderRepository, mock(CartService.class));
+        VnpayPaymentService service = new VnpayPaymentService(properties, orderRepository);
         VnpayReturnResult result = service.verifyReturn(params);
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.isValidSignature()).isTrue();
-        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.SUCCESS);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(order.getTransactionCode()).isEqualTo("15568692");
         verify(orderRepository).save(order);
